@@ -1,18 +1,20 @@
 services:
-  vault:
+  storvex:
     build: .
-    container_name: vault-gateway
+    container_name: storvex-gateway
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       PORT: 8080
-      VAULT_STORAGE_MODE: http
-      VAULT_STORAGE_BASE_PORT: 9100
-      VAULT_DATA_DIR: /app/data
+      STORVEX_STORAGE_MODE: http
+      STORVEX_STORAGE_BASE_PORT: 9100
+      STORVEX_DATA_DIR: /app/data
       REPAIR_INTERVAL_MS: 15000
     ports:
-      - "8080:8080"
-      - "9101-9115:9101-9115"
+      - "127.0.0.1:8080:8080"
     volumes:
-      - vault-data:/app/data
+      - storvex-data:/app/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -20,4 +22,5 @@ services:
       retries: 5
 
 volumes:
-  vault-data:
+  storvex-data:
+    name: ${STORVEX_VOLUME_NAME:-promptathon-project_vault-data}

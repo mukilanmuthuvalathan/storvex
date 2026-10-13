@@ -4,15 +4,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ErasureCodec } from '../src/data/erasure-codec.js';
-import { VaultCluster } from '../src/core/vault-engine.js';
+import { StorvexCluster } from '../src/core/storvex-engine.js';
 
 const directories = [];
-let vault;
+let storvex;
 
 beforeEach(async () => {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'vault-ec-test-'));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'storvex-ec-test-'));
   directories.push(rootDir);
-  vault = await new VaultCluster({ rootDir }).init();
+  storvex = await new StorvexCluster({ rootDir }).init();
 });
 
 after(async () => {
@@ -31,23 +31,23 @@ describe('10+4 erasure storage', () => {
 
   test('stores cold data as fourteen fragments and repairs corruption', async () => {
     const original = Buffer.from('cold archive payload that must survive four independent fragment losses');
-    const record = await vault.putObject('archive/2026.snap', original, { storageClass: 'cold' });
+    const record = await storvex.putObject('archive/2026.snap', original, { storageClass: 'cold' });
     assert.equal(record.chunks[0].mode, 'erasure');
     assert.equal(record.chunks[0].fragments.length, 14);
     const damagedNode = record.chunks[0].fragments[0].nodeId;
-    await vault.corruptReplica(record.key, damagedNode);
-    const retrieved = await vault.getObject(record.key);
+    await storvex.corruptReplica(record.key, damagedNode);
+    const retrieved = await storvex.getObject(record.key);
     assert.deepEqual(retrieved.buffer, original);
-    const report = await vault.integrityScan();
-    assert.ok(report.repaired >= 1 || vault.metrics.repairs >= 1);
+    const report = await storvex.integrityScan();
+    assert.ok(report.repaired >= 1 || storvex.metrics.repairs >= 1);
   });
 
   test('uses tombstones before garbage collection removes data', async () => {
-    await vault.putObject('expired/object', Buffer.from('retained until gc'));
-    await vault.deleteObject('expired/object', 0);
-    await assert.rejects(vault.getObject('expired/object'), (error) => error.code === 'NOT_FOUND');
-    const report = await vault.garbageCollect();
+    await storvex.putObject('expired/object', Buffer.from('retained until gc'));
+    await storvex.deleteObject('expired/object', 0);
+    await assert.rejects(storvex.getObject('expired/object'), (error) => error.code === 'NOT_FOUND');
+    const report = await storvex.garbageCollect();
     assert.equal(report.purged, 1);
-    assert.equal(vault.metadata.objects['expired/object'], undefined);
+    assert.equal(storvex.metadata.objects['expired/object'], undefined);
   });
 });

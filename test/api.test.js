@@ -5,10 +5,10 @@ import { after, before, describe, test } from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { VaultCluster } from '../src/core/vault-engine.js';
+import { StorvexCluster } from '../src/core/storvex-engine.js';
 
 let rootDir;
-let vault;
+let storvex;
 let server;
 let baseUrl;
 
@@ -19,8 +19,8 @@ function s3Key(url) {
 }
 
 before(async () => {
-  rootDir = await mkdtemp(path.join(os.tmpdir(), 'vault-api-test-'));
-  vault = await new VaultCluster({ rootDir }).init();
+  rootDir = await mkdtemp(path.join(os.tmpdir(), 'storvex-api-test-'));
+  storvex = await new StorvexCluster({ rootDir }).init();
   server = createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost');
     try {
@@ -29,17 +29,17 @@ before(async () => {
         if (request.method === 'PUT') {
           const chunks = [];
           for await (const chunk of request) chunks.push(chunk);
-          const record = await vault.putObject(key, Buffer.concat(chunks), { contentType: request.headers['content-type'] || 'application/octet-stream' });
-          response.writeHead(200, { ETag: `"${record.checksum}"`, 'X-Vault-Version': String(record.version) });
+          const record = await storvex.putObject(key, Buffer.concat(chunks), { contentType: request.headers['content-type'] || 'application/octet-stream' });
+          response.writeHead(200, { ETag: `"${record.checksum}"`, 'X-Storvex-Version': String(record.version) });
           return response.end();
         }
         if (request.method === 'GET') {
-          const { buffer, record } = await vault.getObject(key);
+          const { buffer, record } = await storvex.getObject(key);
           response.writeHead(200, { 'Content-Type': record.contentType, ETag: `"${record.checksum}"` });
           return response.end(buffer);
         }
         if (request.method === 'DELETE') {
-          await vault.deleteObject(key, 0);
+          await storvex.deleteObject(key, 0);
           response.writeHead(204);
           return response.end();
         }
@@ -57,7 +57,7 @@ before(async () => {
 });
 
 after(async () => {
-  await vault?.close();
+  await storvex?.close();
   await new Promise((resolve) => server.close(resolve));
   await rm(rootDir, { recursive: true, force: true });
 });
@@ -75,7 +75,7 @@ describe('S3-compatible object route behavior', () => {
 
     const deleted = await fetch(`${baseUrl}/s3/demo-bucket/folder/object.txt?retentionMs=0`, { method: 'DELETE' });
     assert.equal(deleted.status, 204);
-    await vault.garbageCollect();
+    await storvex.garbageCollect();
 
     const missing = await fetch(`${baseUrl}/s3/demo-bucket/folder/object.txt`);
     assert.equal(missing.status, 404);

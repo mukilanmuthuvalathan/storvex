@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Storvex</title>
+  <rect width="32" height="32" rx="8" fill="#191924"/>
+  <g fill="none" stroke="#c3b4ff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="m16 5 10 5.5v11L16 27 6 21.5v-11L16 5Z"/>
+    <path d="m6 10.5 10 5.5 10-5.5M16 16v11M11 7.8l10 5.5"/>
+  </g>
+</svg>

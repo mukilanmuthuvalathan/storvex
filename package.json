@@ -1,12 +1,12 @@
 {
-  "name": "vault-distributed-object-store",
+  "name": "storvex-distributed-object-store",
   "version": "1.0.0",
   "private": true,
-  "description": "Fault-tolerant distributed object storage with quorum consistency and automatic repair",
+  "description": "Storvex fault-tolerant distributed object storage with quorum consistency and automatic repair",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "start:local": "set VAULT_STORAGE_MODE=local&& node src/server.js",
+    "start:local": "set STORVEX_STORAGE_MODE=local&& node src/server.js",
     "storage-node": "node src/storage/storage-node-server.js",
     "verify": "npm run check && npm test",
     "test": "node --test",

@@ -1,4 +1,7 @@
 .git
+.vercel
+.env
+.env.*
 data
 node_modules
 test

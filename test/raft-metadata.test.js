@@ -9,7 +9,7 @@ const directories = [];
 let rootDir;
 
 beforeEach(async () => {
-  rootDir = await mkdtemp(path.join(os.tmpdir(), 'vault-raft-test-'));
+  rootDir = await mkdtemp(path.join(os.tmpdir(), 'storvex-raft-test-'));
   directories.push(rootDir);
 });
 

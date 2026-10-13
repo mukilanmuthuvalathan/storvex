@@ -1,15 +1,15 @@
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: [build, -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vault:$COMMIT_SHA', .]
+    args: [build, -t, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/storvex:$COMMIT_SHA', .]
   - name: gcr.io/cloud-builders/docker
-    args: [push, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vault:$COMMIT_SHA']
+    args: [push, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/storvex:$COMMIT_SHA']
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args:
       - run
       - deploy
-      - vault
-      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vault:$COMMIT_SHA
+      - storvex
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/storvex:$COMMIT_SHA
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
@@ -18,10 +18,10 @@ steps:
       - --memory=1Gi
       - --cpu=1
 images:
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vault:$COMMIT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/storvex:$COMMIT_SHA'
 substitutions:
   _REGION: asia-south1
-  _REPOSITORY: vault
-  _BUCKET: vault-disaster-recovery
+  _REPOSITORY: storvex
+  _BUCKET: storvex-disaster-recovery
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const files = [
   'src/server.js',
-  'src/core/vault-engine.js',
+  'src/core/storvex-engine.js',
   'src/control/raft-metadata.js',
   'src/data/erasure-codec.js',
   'src/data/read-coordinator.js',

@@ -1,6 +1,6 @@
-# Vault Evaluation Scorecard
+# Storvex Evaluation Scorecard
 
-This file maps Vault directly to the Prompt-a-thon evaluation categories so reviewers and automated checks can find the strongest evidence quickly.
+This file maps Storvex directly to the Prompt-a-thon evaluation categories so reviewers and automated checks can find the strongest evidence quickly.
 
 ## Problem Statement Alignment
 
@@ -28,7 +28,7 @@ This file maps Vault directly to the Prompt-a-thon evaluation categories so revi
 
 ## Security
 
-- Optional bearer auth through `VAULT_API_KEY`.
+- Optional bearer auth through `STORVEX_API_KEY`.
 - Per-client sliding-window rate limiting.
 - Request-size limits for JSON and raw object APIs.
 - Path traversal prevention for static assets and storage artifacts.

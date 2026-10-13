@@ -17,16 +17,16 @@ const safeKey = (key) => Buffer.from(key).toString('base64url');
 const now = () => new Date().toISOString();
 const DEFAULT_CHUNK_SIZE = 64 * 1024 * 1024;
 
-export class VaultError extends Error {
-  constructor(message, status = 500, code = 'VAULT_ERROR') {
+export class StorvexError extends Error {
+  constructor(message, status = 500, code = 'STORVEX_ERROR') {
     super(message);
-    this.name = 'VaultError';
+    this.name = 'StorvexError';
     this.status = status;
     this.code = code;
   }
 }
 
-export class VaultCluster {
+export class StorvexCluster {
   constructor({ rootDir, nodes = 15, replicationFactor = 3, readQuorum = 2, writeQuorum = 2, chunkSize = DEFAULT_CHUNK_SIZE, storageMode = 'local', manageStorageNodes = false, storageBasePort = 9100 } = {}) {
     this.rootDir = rootDir;
     this.nodeCount = nodes;
@@ -62,7 +62,7 @@ export class VaultCluster {
     await this.controlPlane.init();
     this.metadata = this.controlPlane.catalog;
     await this.#recalculateUsage();
-    this.#event('cluster', 'Vault fabric initialized', `${this.nodes.size} nodes · 3 zones · 5 metadata voters`);
+    this.#event('cluster', 'Storvex fabric initialized', `${this.nodes.size} nodes · 3 zones · 5 metadata voters`);
     return this;
   }
 
@@ -156,7 +156,7 @@ export class VaultCluster {
 
   async getObject(key) {
     const manifest = this.metadata.objects[key];
-    if (!manifest || manifest.tombstone) throw new VaultError('Object not found', 404, 'NOT_FOUND');
+    if (!manifest || manifest.tombstone) throw new StorvexError('Object not found', 404, 'NOT_FOUND');
     const buffers = [];
     for (const chunk of [...manifest.chunks].sort((a, b) => a.index - b.index)) {
       buffers.push(chunk.mode === 'erasure'
@@ -164,7 +164,7 @@ export class VaultCluster {
         : await this.#readReplicatedChunk(manifest, chunk));
     }
     const buffer = Buffer.concat(buffers).subarray(0, manifest.size);
-    if (sha256(buffer) !== manifest.checksum) throw new VaultError('Object checksum mismatch', 503, 'DATA_UNAVAILABLE');
+    if (sha256(buffer) !== manifest.checksum) throw new StorvexError('Object checksum mismatch', 503, 'DATA_UNAVAILABLE');
     this.metrics.reads += 1;
     this.#event('read', `Retrieved ${key}`, `v${manifest.version} verified from ${manifest.storageClass} storage`);
     return { buffer, record: manifest };
@@ -197,8 +197,8 @@ export class VaultCluster {
 
   setNodeStatus(nodeId, status) {
     const node = this.nodes.get(nodeId);
-    if (!node) throw new VaultError('Node not found', 404, 'NODE_NOT_FOUND');
-    if (!['healthy', 'offline', 'partitioned'].includes(status)) throw new VaultError('Invalid node status', 400, 'INVALID_STATUS');
+    if (!node) throw new StorvexError('Node not found', 404, 'NODE_NOT_FOUND');
+    if (!['healthy', 'offline', 'partitioned'].includes(status)) throw new StorvexError('Invalid node status', 400, 'INVALID_STATUS');
     if (status === 'healthy' && this.storageMode === 'http' && this.manageStorageNodes) this.#spawnStorageNode(node);
     if (status !== 'healthy' && this.storageMode === 'http' && this.manageStorageNodes) this.#killStorageNode(node);
     node.status = status;
@@ -209,7 +209,7 @@ export class VaultCluster {
 
   crashStorageNode(nodeId) {
     const node = this.nodes.get(nodeId);
-    if (!node) throw new VaultError('Node not found', 404, 'NODE_NOT_FOUND');
+    if (!node) throw new StorvexError('Node not found', 404, 'NODE_NOT_FOUND');
     this.#killStorageNode(node);
     node.status = 'partitioned';
     this.#event('failure', `${nodeId} process crashed`, `${node.zone} · HTTP storage endpoint unavailable`);
@@ -219,7 +219,7 @@ export class VaultCluster {
   async corruptReplica(key, nodeId) {
     const manifest = this.metadata.objects[key];
     const node = this.nodes.get(nodeId);
-    if (!manifest || !node) throw new VaultError('Replica not found', 404, 'REPLICA_NOT_FOUND');
+    if (!manifest || !node) throw new StorvexError('Replica not found', 404, 'REPLICA_NOT_FOUND');
     for (const chunk of manifest.chunks) {
       const fragment = chunk.mode === 'erasure' ? chunk.fragments.find((item) => item.nodeId === nodeId) : null;
       if (fragment) {
@@ -233,12 +233,12 @@ export class VaultCluster {
         return { key, nodeId, chunk: chunk.index };
       }
     }
-    throw new VaultError('Replica not found on selected node', 404, 'REPLICA_NOT_FOUND');
+    throw new StorvexError('Replica not found on selected node', 404, 'REPLICA_NOT_FOUND');
   }
 
   async deleteObject(key, retentionMs = 24 * 60 * 60 * 1000) {
     const manifest = this.metadata.objects[key];
-    if (!manifest || manifest.tombstone) throw new VaultError('Object not found', 404, 'NOT_FOUND');
+    if (!manifest || manifest.tombstone) throw new StorvexError('Object not found', 404, 'NOT_FOUND');
     await this.locks.withKey('metadata:commit', async () => {
       manifest.tombstone = true;
       manifest.deletedAt = now();
@@ -299,7 +299,7 @@ export class VaultCluster {
           const node = this.nodes.get(nodeId);
           await this.#writeArtifact(node, this.#artifactPath(node, manifest.key, manifest.version, chunk.index), valid[0].buffer);
           const verification = await readFile(this.#artifactPath(node, manifest.key, manifest.version, chunk.index));
-          if (sha256(verification) !== chunk.hash) throw new VaultError('Rebalance verification failed', 500, 'VERIFY_FAILED');
+          if (sha256(verification) !== chunk.hash) throw new StorvexError('Rebalance verification failed', 500, 'VERIFY_FAILED');
           chunk.replicas.push(nodeId);
           const removable = chunk.replicas.find((id) => !desired.includes(id) && id !== nodeId);
           if (removable) {
@@ -318,22 +318,22 @@ export class VaultCluster {
 
   async #writeReplicatedChunk(key, version, index, content, policy, written) {
     const targets = this.placement.select(this.#writableNodes(), policy.replicationFactor);
-    if (targets.length < policy.writeQuorum) throw new VaultError('Write quorum unavailable', 503, 'QUORUM_UNAVAILABLE');
+    if (targets.length < policy.writeQuorum) throw new StorvexError('Write quorum unavailable', 503, 'QUORUM_UNAVAILABLE');
     const successes = [];
     await Promise.all(targets.map(async (node) => {
       const artifactPath = this.#artifactPath(node, key, version, index);
       try { await this.#writeArtifact(node, artifactPath, content); successes.push(node.id); written.push({ node, path: artifactPath }); }
       catch { this.metrics.failures += 1; }
     }));
-    if (successes.length < policy.writeQuorum) throw new VaultError('Chunk write quorum failed', 503, 'WRITE_QUORUM_FAILED');
+    if (successes.length < policy.writeQuorum) throw new StorvexError('Chunk write quorum failed', 503, 'WRITE_QUORUM_FAILED');
     const zones = new Set(successes.map((id) => this.nodes.get(id).zone));
-    if (zones.size < Math.min(3, policy.replicationFactor)) throw new VaultError('Durability requires independent failure zones', 503, 'ZONE_DURABILITY_FAILED');
+    if (zones.size < Math.min(3, policy.replicationFactor)) throw new StorvexError('Durability requires independent failure zones', 503, 'ZONE_DURABILITY_FAILED');
     return { id: `${version}:${index}`, index, offset: index * this.chunkSize, size: content.length, hash: sha256(content), mode: 'replicated', replicas: successes };
   }
 
   async #writeErasureChunk(key, version, index, content, policy, written) {
     const targets = this.placement.select(this.#writableNodes(), policy.dataShards + policy.parityShards);
-    if (targets.length < policy.dataShards + policy.parityShards) throw new VaultError('10+4 erasure coding requires 14 healthy nodes', 503, 'EC_PLACEMENT_FAILED');
+    if (targets.length < policy.dataShards + policy.parityShards) throw new StorvexError('10+4 erasure coding requires 14 healthy nodes', 503, 'EC_PLACEMENT_FAILED');
     const encoded = this.erasureCodec.encode(content);
     const fragments = [];
     await Promise.all(encoded.shards.map(async (buffer, fragmentIndex) => {
@@ -345,8 +345,8 @@ export class VaultCluster {
         written.push({ node, path: artifactPath });
       } catch { this.metrics.failures += 1; }
     }));
-    if (fragments.length < policy.ecWriteQuorum) throw new VaultError('Erasure durability quorum failed', 503, 'EC_QUORUM_FAILED');
-    if (new Set(fragments.map((item) => this.nodes.get(item.nodeId).zone)).size < 3) throw new VaultError('Erasure fragments must span three zones', 503, 'ZONE_DURABILITY_FAILED');
+    if (fragments.length < policy.ecWriteQuorum) throw new StorvexError('Erasure durability quorum failed', 503, 'EC_QUORUM_FAILED');
+    if (new Set(fragments.map((item) => this.nodes.get(item.nodeId).zone)).size < 3) throw new StorvexError('Erasure fragments must span three zones', 503, 'ZONE_DURABILITY_FAILED');
     return { id: `${version}:${index}`, index, offset: index * this.chunkSize, size: content.length, hash: sha256(content), mode: 'erasure', dataShards: policy.dataShards, parityShards: policy.parityShards, shardSize: encoded.shardSize, fragments: fragments.sort((a, b) => a.index - b.index) };
   }
 
@@ -356,7 +356,7 @@ export class VaultCluster {
       await Promise.all(chunk.replicas.map((nodeId) => this.#recoverManagedNode(nodeId)));
       read = await this.#readReplicatedChunkOnce(manifest, chunk);
     }
-    if (!read.quorumAvailable || !read.valid.length) throw new VaultError('No valid chunk replica available', 503, 'DATA_UNAVAILABLE');
+    if (!read.quorumAvailable || !read.valid.length) throw new StorvexError('No valid chunk replica available', 503, 'DATA_UNAVAILABLE');
     if (read.damaged.length || read.valid.length < manifest.policy.replicationFactor) {
       const invalidIds = read.damaged.map((entry) => entry.node.id);
       this.repairScheduler.schedule(() => this.#repairReplicatedChunk(manifest, chunk, read.valid[0].buffer, invalidIds), { priority: manifest.policy.replicationFactor - read.valid.length, label: `${manifest.key}:${chunk.index}` }).catch(() => {});
@@ -379,9 +379,9 @@ export class VaultCluster {
       await Promise.all(chunk.fragments.map((fragment) => this.#recoverManagedNode(fragment.nodeId)));
       available = await this.#validFragments(manifest, chunk);
     }
-    if (available.length < chunk.dataShards) throw new VaultError('Not enough valid erasure fragments', 503, 'DATA_UNAVAILABLE');
+    if (available.length < chunk.dataShards) throw new StorvexError('Not enough valid erasure fragments', 503, 'DATA_UNAVAILABLE');
     const content = this.erasureCodec.decode(available, chunk.size);
-    if (sha256(content) !== chunk.hash) throw new VaultError('Decoded chunk checksum mismatch', 503, 'DATA_UNAVAILABLE');
+    if (sha256(content) !== chunk.hash) throw new StorvexError('Decoded chunk checksum mismatch', 503, 'DATA_UNAVAILABLE');
     if (available.length < chunk.dataShards + chunk.parityShards) {
       this.repairScheduler.schedule(() => this.#repairErasureChunk(manifest, chunk, content, available), { priority: chunk.dataShards + chunk.parityShards - available.length, label: `${manifest.key}:${chunk.index}` }).catch(() => {});
     }
@@ -558,7 +558,7 @@ export class VaultCluster {
       if (results.every(Boolean)) return;
       await new Promise((resolve) => setTimeout(resolve, 120));
     }
-    throw new VaultError('Managed storage nodes failed to start', 503, 'STORAGE_BOOT_FAILED');
+    throw new StorvexError('Managed storage nodes failed to start', 503, 'STORAGE_BOOT_FAILED');
   }
 
   #spawnStorageNode(node) {
@@ -619,15 +619,15 @@ export class VaultCluster {
   #policy(input = {}) {
     const policy = { ...this.defaultPolicy, ...input };
     for (const key of ['replicationFactor', 'readQuorum', 'writeQuorum', 'dataShards', 'parityShards', 'ecWriteQuorum']) policy[key] = Number(policy[key]);
-    if (policy.replicationFactor < 1 || policy.replicationFactor > this.nodes.size) throw new VaultError('Invalid replication factor', 400, 'INVALID_POLICY');
-    if (policy.readQuorum < 1 || policy.writeQuorum < 1 || policy.readQuorum > policy.replicationFactor || policy.writeQuorum > policy.replicationFactor) throw new VaultError('Invalid quorum policy', 400, 'INVALID_POLICY');
-    if (policy.readQuorum + policy.writeQuorum <= policy.replicationFactor) throw new VaultError('R + W must exceed replication factor', 400, 'UNSAFE_POLICY');
+    if (policy.replicationFactor < 1 || policy.replicationFactor > this.nodes.size) throw new StorvexError('Invalid replication factor', 400, 'INVALID_POLICY');
+    if (policy.readQuorum < 1 || policy.writeQuorum < 1 || policy.readQuorum > policy.replicationFactor || policy.writeQuorum > policy.replicationFactor) throw new StorvexError('Invalid quorum policy', 400, 'INVALID_POLICY');
+    if (policy.readQuorum + policy.writeQuorum <= policy.replicationFactor) throw new StorvexError('R + W must exceed replication factor', 400, 'UNSAFE_POLICY');
     return policy;
   }
 
   #validateObject(key, buffer) {
-    if (!key || typeof key !== 'string' || key.length > 240) throw new VaultError('Object key must be 1-240 characters', 400, 'INVALID_KEY');
-    if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new VaultError('Object content cannot be empty', 400, 'EMPTY_OBJECT');
+    if (!key || typeof key !== 'string' || key.length > 240) throw new StorvexError('Object key must be 1-240 characters', 400, 'INVALID_KEY');
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new StorvexError('Object content cannot be empty', 400, 'EMPTY_OBJECT');
   }
 
   #writableNodes() { return [...this.nodes.values()].filter((node) => node.status === 'healthy'); }

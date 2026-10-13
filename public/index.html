@@ -3,142 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Vault fault-tolerant distributed object storage control plane">
-  <title>Vault — Distributed Object Storage</title>
+  <meta name="description" content="Storvex — a clear, connected workspace for your object storage.">
+  <meta name="theme-color" content="#191924">
+  <title>Overview · Storvex</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;550;600;650;700&amp;family=Manrope:wght@400;500;600;650;700;750;800&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="shell">
-    <aside class="sidebar" aria-label="Primary navigation">
-      <a class="brand" href="#overview" aria-label="Vault home">
-        <span class="brand-mark" aria-hidden="true"><span></span></span>
-        <span>vault</span>
-      </a>
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <a class="brand" href="#overview" aria-label="Storvex home"><span class="brand-mark" data-icon="storvex"></span><span>storvex<span class="brand-period">.</span></span></a>
+      <div class="workspace"><span class="workspace-symbol">S</span><div><strong>Your workspace</strong><small>Object storage</small></div><span class="workspace-dot" aria-label="Local workspace"></span></div>
+      <p class="nav-caption">WORKSPACE</p>
       <nav>
-        <a class="nav-link active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
-        <a class="nav-link" href="#objects"><span class="nav-icon">◇</span>Objects</a>
-        <a class="nav-link" href="#nodes"><span class="nav-icon">⌘</span>Nodes</a>
-        <a class="nav-link" href="#activity"><span class="nav-icon">↗</span>Activity</a>
+        <a class="nav-link active" href="#overview" aria-current="page"><span data-icon="overview"></span>Overview</a>
+        <a class="nav-link" href="#objects"><span data-icon="folder"></span>Objects<span class="nav-count" id="nav-object-count">—</span></a>
+        <a class="nav-link" href="#nodes"><span data-icon="server"></span>Infrastructure</a>
+        <a class="nav-link" href="#activity"><span data-icon="activity"></span>Activity</a>
       </nav>
+      <p class="nav-caption second-caption">MANAGE</p>
+      <nav><a class="nav-link" href="#plans"><span data-icon="layers"></span>Storage plans</a></nav>
       <div class="sidebar-spacer"></div>
-      <div class="cloud-card">
-        <span class="eyebrow">Google Cloud</span>
-        <div class="cloud-row"><span class="g-cloud">G</span><div><strong>Cloud Run ready</strong><small id="gcs-status">GCS mirror checking</small></div></div>
-      </div>
-      <div class="user-row">
-        <span class="avatar">OP</span><div><strong>Operator</strong><small>Cluster admin</small></div><span class="more">•••</span>
-      </div>
+      <div class="sidebar-note"><span class="note-icon" data-icon="shield"></span><strong>A place for what matters.</strong><p>One workspace to store, retrieve, and look after your data.</p><a href="#plans">Explore storage options <span data-icon="arrow"></span></a></div>
+      <button class="sidebar-help" id="help-button"><span data-icon="help"></span>Workspace guide<span data-icon="external"></span></button>
+      <div class="user-row"><span class="avatar">SX</span><div><strong>Workspace admin</strong><small>Local environment</small></div><span class="user-indicator"></span></div>
     </aside>
-
-    <main id="main">
+    <button class="sidebar-overlay" id="sidebar-overlay" aria-label="Close navigation" hidden></button>
+    <div class="workspace-body">
       <header class="topbar">
-        <div>
-          <p class="breadcrumb">CONTROL PLANE <span>/</span> PRIMARY CLUSTER</p>
-          <h1>Good morning, Operator.</h1>
-          <p class="subtitle">Your storage fabric is healthy and protecting every object.</p>
-        </div>
-        <div class="header-actions">
-          <span class="live-pill"><i></i><span id="cluster-health">Operational</span></span>
-          <button class="btn ghost" id="seed-button">Load demo data</button>
-          <button class="btn primary" id="upload-button"><span>＋</span> Store object</button>
-        </div>
+        <div class="topbar-left"><button class="icon-button mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><span data-icon="menu"></span></button><span class="workspace-breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-current">Overview</strong></span></div>
+        <div class="topbar-actions"><span class="connection-pill" id="connection-pill"><i></i><span id="cluster-health">Connecting</span></span><span class="topbar-divider"></span><button class="icon-button" id="refresh-button" aria-label="Refresh workspace" title="Refresh workspace"><span data-icon="refresh"></span></button><span class="small-avatar" aria-label="Workspace admin">SX</span></div>
       </header>
-
-      <section id="overview" class="metric-grid" aria-label="Cluster overview">
-        <article class="metric-card accent-card">
-          <div class="metric-head"><span>Protected objects</span><span class="metric-icon">◇</span></div>
-          <div class="metric-main"><strong id="object-count">0</strong><span class="delta">100% verified</span></div>
-          <div class="spark-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-head"><span>Logical storage</span><span class="metric-icon purple">◫</span></div>
-          <div class="metric-main"><strong id="logical-bytes">0 B</strong><span class="delta neutral" id="storage-overhead">0× physical</span></div>
-          <div class="capacity-track"><span id="capacity-fill"></span></div>
-          <small>Across 3 availability zones</small>
-        </article>
-        <article class="metric-card">
-          <div class="metric-head"><span>Availability</span><span class="metric-icon green">✓</span></div>
-          <div class="metric-main"><strong id="availability">100%</strong><span class="delta">SLO met</span></div>
-          <div class="availability-dots" id="availability-dots" aria-label="Recent availability samples"></div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-head"><span>Recovery time</span><span class="metric-icon orange">↻</span></div>
-          <div class="metric-main"><strong id="recovery-time">0 ms</strong><span class="delta neutral">Last scrub</span></div>
-          <div class="mini-stat-row"><span><b id="repair-count">0</b> repaired</span><span><b id="failure-count">0</b> faults</span></div>
-        </article>
-      </section>
-
-      <section class="content-grid">
-        <div class="wide-column">
-          <article id="nodes" class="panel">
-            <div class="panel-heading">
-              <div><p class="eyebrow">STORAGE FABRIC</p><h2>Node topology</h2></div>
-              <div class="legend"><span><i class="healthy-dot"></i>Healthy</span><span><i class="warn-dot"></i>Degraded</span><span><i class="down-dot"></i>Offline</span></div>
-            </div>
-            <div class="zone-labels"><span>ZONE 1</span><span>ZONE 2</span><span>ZONE 3</span></div>
-            <div class="node-grid" id="node-grid" aria-live="polite"></div>
-          </article>
-
-          <article id="objects" class="panel object-panel">
-            <div class="panel-heading">
-              <div><p class="eyebrow">OBJECT CATALOG</p><h2>Recently protected</h2></div>
-              <div class="table-actions"><label class="search"><span>⌕</span><input id="object-search" type="search" placeholder="Search objects" aria-label="Search objects"></label><button class="icon-button" id="refresh-button" aria-label="Refresh">↻</button></div>
-            </div>
-            <div class="table-scroll">
-              <table>
-                <caption class="sr-only">Stored objects, health, size, version, replica count, update time, and retrieval action</caption>
-                <thead><tr><th>Object</th><th>Health</th><th>Size</th><th>Version</th><th>Replicas</th><th>Updated</th><th><span class="sr-only">Actions</span></th></tr></thead>
-                <tbody id="object-table"></tbody>
-              </table>
-            </div>
-            <div class="empty-state" id="empty-state">
-              <span class="empty-icon">◇</span><h3>No objects yet</h3><p>Store an object or load demo data to watch Vault replicate it.</p>
-            </div>
-          </article>
+      <main id="main">
+        <div class="connection-alert" id="connection-alert" role="status" hidden>Could not connect to Storvex. Your last loaded data is shown. Try refreshing.</div>
+        <div class="page-heading"><div><p class="eyebrow" id="page-eyebrow">YOUR STORAGE, AT A GLANCE</p><h1 id="page-title">Overview<span class="heading-dot">.</span></h1><p class="subtitle" id="page-description">Everything you store. Everything you need to know.</p></div><button class="btn primary" id="upload-button"><span data-icon="plus"></span>Upload object</button></div>
+        <section class="hero" data-views="overview" aria-label="Welcome to your storage workspace">
+          <div class="hero-copy"><span class="hero-eyebrow"><i></i>BUILT AROUND YOUR DATA</span><h2>Big ideas.<br>A better place to store them.</h2><p>From your first file to your next big project.<br>Keep your data organized, accessible, and in view.</p><a class="hero-link" href="#objects">Open your object catalog <span data-icon="arrow"></span></a></div>
+          <div class="hero-visual" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><span class="floating-dot dot-one"></span><span class="floating-dot dot-two"></span><div class="storage-stack"><div class="stack-layer layer-top"><span data-icon="storvex"></span><span class="stack-lights"><i></i><i></i><i></i></span></div><div class="stack-layer layer-middle"><span class="stack-lines"></span><span class="stack-lights"><i></i><i></i><i></i></span></div><div class="stack-layer layer-bottom"><span class="stack-lines"></span><span class="stack-lights"><i></i><i></i><i></i></span></div></div><div class="hero-chip chip-top"><span data-icon="layers"></span>Immutable objects</div><div class="hero-chip chip-bottom"><span class="chip-dot"></span>Checksum verification</div></div>
+        </section>
+        <section class="metric-grid" data-views="overview" aria-label="Live cluster metrics">
+          <article class="metric-card"><div class="metric-head"><span>Stored objects</span><span class="metric-icon" data-icon="folder"></span></div><strong class="metric-number" id="object-count">—</strong><div class="metric-foot"><span class="metric-pill" id="object-health-summary">Waiting for data</span><span>in your catalog</span></div></article>
+          <article class="metric-card"><div class="metric-head"><span>Data stored</span><span class="metric-icon" data-icon="database"></span></div><strong class="metric-number" id="logical-bytes">—</strong><div class="metric-foot"><span id="storage-overhead">— physical storage</span><span data-icon="layers"></span></div></article>
+          <article class="metric-card"><div class="metric-head"><span>Nodes online</span><span class="metric-icon" data-icon="server"></span></div><strong class="metric-number" id="availability">—</strong><div class="metric-foot"><span class="metric-pill" id="node-health-summary">Connecting</span><span>live node health</span></div></article>
+          <article class="metric-card"><div class="metric-head"><span>Last integrity scan</span><span class="metric-icon" data-icon="shield"></span></div><strong class="metric-number" id="recovery-time">—</strong><div class="metric-foot"><span><b id="repair-count">0</b> artifacts repaired</span><span id="failure-count">0 failed operations</span></div></article>
+        </section>
+        <div class="catalog-layout" data-views="overview objects">
+          <section class="panel object-panel" id="objects" aria-labelledby="catalog-title">
+            <div class="panel-heading"><div><h2 id="catalog-title">Your objects <span class="count-badge" id="catalog-count">0</span></h2><p>One home for all your files and datasets.</p></div><a class="text-link" href="#objects" id="view-all-link">View all <span data-icon="arrow"></span></a></div>
+            <div class="catalog-toolbar"><div class="filter-tabs" role="group" aria-label="Filter by storage class"><button class="filter-tab active" data-filter="all" aria-pressed="true">All objects</button><button class="filter-tab" data-filter="hot" aria-pressed="false">Hot storage</button><button class="filter-tab" data-filter="cold" aria-pressed="false">Cold storage</button></div><label class="search"><span data-icon="search"></span><input id="object-search" type="search" placeholder="Search objects…" aria-label="Search objects"></label></div>
+            <div class="table-scroll"><table><caption class="sr-only">Stored objects, storage class, size, health, update time, and download action</caption><thead><tr><th scope="col">Name</th><th scope="col">Storage</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Updated</th><th scope="col"><span class="sr-only">Download</span></th></tr></thead><tbody id="object-table"></tbody></table></div>
+            <div class="empty-state" id="empty-state"><span class="empty-icon" data-icon="folder"></span><h3 id="empty-title">Your next project starts here.</h3><p id="empty-description">Upload your first object to see it in your workspace.</p><button class="btn primary" data-upload="hot"><span data-icon="plus"></span>Upload your first object</button></div>
+            <div class="catalog-footer"><span id="catalog-summary">Loading your catalog…</span><span><i class="tiny-dot"></i>Live catalog</span></div>
+          </section>
+          <aside class="storage-aside"><section class="panel policy-card" aria-labelledby="policy-title"><div class="panel-heading"><div><span class="eyebrow">DEFAULT STORAGE</span><h2 id="policy-title">A little extra protection.</h2></div><span class="policy-shield" data-icon="shield"></span></div><div class="policy-visual"><div class="replica-group" aria-hidden="true"><span data-icon="server"></span><span data-icon="server"></span><span data-icon="server"></span></div><span class="policy-type">Hot storage</span></div><dl class="policy-list"><div><dt>Replica target</dt><dd><span id="policy-rf">—</span> copies</dd></div><div><dt>Read / write quorum</dt><dd><span id="policy-rq">—</span> / <span id="policy-wq">—</span></dd></div><div><dt>Placement zones</dt><dd>3 logical zones</dd></div></dl><a href="#plans" class="policy-link">Compare storage plans <span data-icon="arrow"></span></a></section><div class="quick-tip"><span data-icon="sparkles"></span><div><strong>Less overhead for cold data.</strong><p>10+4 erasure coding uses about 1.4× storage before fragment padding.</p><a href="#plans">Meet cold storage <span data-icon="arrow"></span></a></div></div></aside>
         </div>
-
-        <aside class="right-column">
-          <article class="panel fault-lab">
-            <div class="panel-heading compact"><div><p class="eyebrow">LIVE DEMO</p><h2>Failure lab</h2></div><span class="lab-badge">SAFE</span></div>
-            <p class="panel-copy">Inject a fault and watch quorum reads continue while Vault repairs the cluster.</p>
-            <div class="scenario-list">
-              <button class="scenario" id="fail-node-button"><span class="scenario-icon red">⌁</span><span><strong>Fail a storage node</strong><small>Take one replica host offline</small></span><b>→</b></button>
-              <button class="scenario" id="partition-button"><span class="scenario-icon amber">⌘</span><span><strong>Partition a node</strong><small>Simulate network isolation</small></span><b>→</b></button>
-              <button class="scenario" id="corrupt-button"><span class="scenario-icon purple">⌁</span><span><strong>Corrupt a replica</strong><small>Trigger checksum recovery</small></span><b>→</b></button>
-            </div>
-            <div class="lab-actions"><button class="btn soft" id="scan-button">Run integrity scan</button><button class="btn soft" id="heal-button">Heal all nodes</button></div>
-          </article>
-
-          <article class="panel policy-card">
-            <div class="panel-heading compact"><div><p class="eyebrow">DURABILITY</p><h2>Active policy</h2></div><span class="policy-badge">STRONG</span></div>
-            <div class="policy-visual"><div class="ring"><strong id="policy-rf">3</strong><span>copies</span></div><div class="policy-lines"><span><b id="policy-rq">2</b> Read quorum</span><span><b id="policy-wq">2</b> Write quorum</span><span><b>3</b> Failure domains</span><span id="storage-runtime"><b>15</b> HTTP node processes</span></div></div>
-            <div class="consistency-note"><span>✓</span><p><strong>Strong consistency guaranteed</strong><small>Read + write quorum exceeds replica count.</small></p></div>
-          </article>
-
-          <article id="activity" class="panel activity-card">
-            <div class="panel-heading compact"><div><p class="eyebrow">AUDIT STREAM</p><h2>Live activity</h2></div><span class="pulse"></span></div>
-            <div class="timeline" id="event-list"></div>
-          </article>
-        </aside>
-      </section>
-    </main>
+        <section class="panel infrastructure-panel" id="nodes" data-views="overview nodes" aria-labelledby="infrastructure-title"><div class="panel-heading"><div><h2 id="infrastructure-title">Infrastructure <span class="subtle-label">A connected view</span></h2><p id="storage-runtime">Checking storage runtime…</p></div><div class="legend"><span><i class="healthy-dot"></i>Healthy</span><span><i class="warn-dot"></i>Partitioned</span><span><i class="down-dot"></i>Offline</span></div></div><div id="node-grid" class="node-grid"></div><div class="infra-footer"><span><span data-icon="info"></span>Zones describe placement within this local cluster.</span><span id="metadata-summary">Checking metadata…</span></div></section>
+        <section class="maintenance-section" data-views="nodes"><details id="maintenance"><summary><span data-icon="tools"></span>Advanced maintenance <span class="subtle-label">Controlled fault testing</span></summary><div class="maintenance-content"><p>These actions change live node health or object replicas. Use them only with data you can safely test.</p><div class="maintenance-actions"><button class="btn ghost" id="scan-button"><span data-icon="shield"></span>Verify integrity</button><button class="btn ghost" id="heal-button"><span data-icon="refresh"></span>Recover nodes</button><button class="btn ghost" id="rebalance-button"><span data-icon="layers"></span>Rebalance</button><button class="btn danger" id="fail-node-button">Stop a node</button><button class="btn danger" id="partition-button">Partition a node</button><button class="btn danger" id="corrupt-button">Corrupt a replica</button></div></div></details></section>
+        <section class="panel activity-panel" id="activity" data-views="overview activity" aria-labelledby="activity-title"><div class="panel-heading"><div><h2 id="activity-title">Recent activity</h2><p>A clear record of what happens in your workspace.</p></div><span class="live-label"><i class="tiny-dot"></i>Live updates</span></div><div class="timeline" id="event-list"></div></section>
+        <section class="plans-page" data-views="plans" hidden><div class="plans-intro"><span class="eyebrow">THE RIGHT HOME FOR EVERY OBJECT</span><h2>Two ways to store.<br>One simple workspace.</h2><p>Choose a storage policy when you upload. Your workspace administrator manages capacity and commercial terms.</p></div><div class="plans-grid"><article class="plan-card"><span class="plan-icon" data-icon="layers"></span><span class="plan-label">FOR EVERYDAY ACCESS</span><h3>Hot storage</h3><p>For active projects, frequently accessed files, and data you work with every day.</p><div class="plan-number">3<span>replicas</span></div><ul><li>Three copies across logical placement zones</li><li>SHA-256 verification when retrieving data</li><li>Configurable replication and quorum</li><li>Replica repair through integrity scans</li></ul><button class="btn primary" data-upload="hot">Upload to hot storage <span data-icon="arrow"></span></button></article><article class="plan-card cold-plan"><span class="plan-icon" data-icon="snowflake"></span><span class="plan-label">FOR THE LONGER TERM</span><h3>Cold storage</h3><p>For archives, snapshots, and data where reduced storage overhead matters.</p><div class="plan-number">10 + 4<span>data + parity fragments</span></div><ul><li>About 1.4× storage before fragment padding</li><li>Reconstruct from ten valid fragments</li><li>Individual fragment checksum verification</li><li>Automatic repair of missing fragments</li></ul><button class="btn primary" data-upload="cold">Upload to cold storage <span data-icon="arrow"></span></button></article></div></section>
+        <footer class="page-footer"><span><span class="footer-brand">storvex.</span> A place for what matters.</span><span id="last-sync" role="status">Connecting to your workspace…</span></footer>
+      </main>
+    </div>
   </div>
-
-  <dialog id="upload-dialog" aria-labelledby="upload-title">
-    <form method="dialog" id="upload-form">
-      <div class="dialog-head"><div><p class="eyebrow">NEW OBJECT</p><h2 id="upload-title">Store and protect</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div>
-      <label>Object key<input name="key" id="object-key" required maxlength="240" placeholder="datasets/telemetry.json"></label>
-      <label class="drop-zone" id="drop-zone"><input name="file" id="file-input" type="file" required><span class="upload-glyph">⇧</span><strong>Choose a file</strong><small id="file-label">or drop it here · up to 30 MB</small></label>
-      <label class="storage-class-label">Storage class<select name="storageClass"><option value="hot">Hot · 3 replicas across 3 zones</option><option value="cold">Cold · 10+4 erasure coding</option></select></label>
-      <fieldset><legend>Durability policy</legend><div class="policy-inputs"><label>Replicas<select name="replicationFactor"><option>3</option><option>4</option><option>5</option></select></label><label>Read quorum<select name="readQuorum"><option>2</option><option>3</option></select></label><label>Write quorum<select name="writeQuorum"><option>2</option><option>3</option></select></label></div></fieldset>
-      <div class="dialog-actions"><button class="btn ghost" value="cancel">Cancel</button><button class="btn primary" id="store-submit" value="default">Store object</button></div>
-    </form>
-  </dialog>
+  <dialog id="upload-dialog" aria-labelledby="upload-title"><form id="upload-form"><div class="dialog-head"><div><span class="eyebrow">ADD TO YOUR WORKSPACE</span><h2 id="upload-title">Upload an object</h2><p>Choose a file. We'll take care of its placement.</p></div><button type="button" class="icon-button" data-close="upload-dialog" aria-label="Close upload"><span data-icon="close"></span></button></div><label class="field-label" for="object-key">Object name</label><input name="key" id="object-key" required maxlength="240" placeholder="projects/report.pdf"><span class="field-help">Use a path to keep related objects together.</span><label class="drop-zone" id="drop-zone"><input name="file" id="file-input" type="file" required aria-label="Choose a file to upload"><span class="upload-icon" data-icon="upload"></span><strong>Click to upload <span>or drag and drop</span></strong><small id="file-label">Any file type · up to 20 MB</small></label><label class="field-label" for="storage-class">Storage plan</label><select name="storageClass" id="storage-class"><option value="hot">Hot storage · replicated copies</option><option value="cold">Cold storage · 10+4 erasure coding</option></select><details class="advanced-policy" id="advanced-policy"><summary>Advanced durability settings</summary><fieldset><legend class="sr-only">Durability policy</legend><div class="policy-inputs"><label>Replicas<select name="replicationFactor"><option>3</option><option>4</option><option>5</option></select></label><label>Read quorum<select name="readQuorum"><option>2</option><option>3</option></select></label><label>Write quorum<select name="writeQuorum"><option>2</option><option>3</option></select></label></div></fieldset></details><p class="upload-status" id="upload-status" role="status"></p><div class="dialog-actions"><button type="button" class="btn ghost" data-close="upload-dialog">Cancel</button><button type="submit" class="btn primary" id="store-submit"><span data-icon="upload"></span>Upload object</button></div></form></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="confirm-content"><span class="confirm-icon" data-icon="info"></span><h2 id="confirm-title">Confirm maintenance action</h2><p id="confirm-description"></p><div class="dialog-actions"><button type="button" class="btn ghost" id="confirm-cancel">Cancel</button><button type="button" class="btn danger" id="confirm-accept">Continue</button></div></div></dialog>
+  <dialog id="about-dialog" aria-labelledby="guide-title"><div class="guide-content"><div class="dialog-head"><div><span class="eyebrow">WORKSPACE GUIDE</span><h2 id="guide-title">Make yourself at home.</h2></div><button class="icon-button" data-close="about-dialog" aria-label="Close guide"><span data-icon="close"></span></button></div><p><strong>Objects</strong> is where you upload, search, and download your data. Every download verifies the object checksum.</p><p><strong>Storage plans</strong> compares hot replication and cold erasure coding. Select a policy when uploading.</p><p><strong>Infrastructure</strong> shows actual node state. Advanced maintenance contains integrity scans, rebalancing, and controlled fault tests.</p><p><strong>Activity</strong> records recent storage operations. This local workspace has no billing or tenant provisioning configured.</p><div class="guide-status"><span data-icon="cloud"></span><span id="gcs-status">Checking optional cloud mirror…</span></div><button class="btn primary" data-close="about-dialog">Got it</button></div></dialog>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

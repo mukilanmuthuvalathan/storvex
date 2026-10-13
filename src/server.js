@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VaultCluster, VaultError } from './core/vault-engine.js';
+import { StorvexCluster, StorvexError } from './core/storvex-engine.js';
 import { GcsMirror } from './integrations/gcs-mirror.js';
 import { SlidingWindowRateLimiter } from './gateway/rate-limiter.js';
 import { hasValidApiKey } from './gateway/auth.js';
@@ -11,18 +11,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, '..');
 const publicDir = path.join(projectRoot, 'public');
 const isServerless = Boolean(process.env.VERCEL);
-const dataDir = process.env.VAULT_DATA_DIR || (isServerless ? '/tmp/vault-data' : path.join(projectRoot, 'data'));
+const dataDir = process.env.STORVEX_DATA_DIR || process.env.VAULT_DATA_DIR || (isServerless ? '/tmp/storvex-data' : path.join(projectRoot, 'data'));
 const port = Number(process.env.PORT || 8080);
-const storageMode = process.env.VAULT_STORAGE_MODE || (isServerless ? 'local' : 'http');
-const vault = await new VaultCluster({
+const storageMode = process.env.STORVEX_STORAGE_MODE || process.env.VAULT_STORAGE_MODE || (isServerless ? 'local' : 'http');
+const storvex = await new StorvexCluster({
   rootDir: dataDir,
   storageMode,
   manageStorageNodes: storageMode === 'http',
-  storageBasePort: Number(process.env.VAULT_STORAGE_BASE_PORT || 9100),
+  storageBasePort: Number(process.env.STORVEX_STORAGE_BASE_PORT || process.env.VAULT_STORAGE_BASE_PORT || 9100),
 }).init();
 const mirror = new GcsMirror();
 const rateLimiter = new SlidingWindowRateLimiter({ limit: Number(process.env.RATE_LIMIT_PER_MINUTE || 180) });
-if (!isServerless) vault.startBackgroundRepair(Number(process.env.REPAIR_INTERVAL_MS || 15000));
+if (!isServerless) storvex.startBackgroundRepair(Number(process.env.REPAIR_INTERVAL_MS || 15000));
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -49,11 +49,11 @@ async function parseJson(request, maxBytes = 30 * 1024 * 1024) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > maxBytes) throw new VaultError('Request exceeds 30 MB demo limit', 413, 'PAYLOAD_TOO_LARGE');
+    if (size > maxBytes) throw new StorvexError('Request exceeds 30 MB demo limit', 413, 'PAYLOAD_TOO_LARGE');
     chunks.push(chunk);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
-  catch { throw new VaultError('Invalid JSON body', 400, 'INVALID_JSON'); }
+  catch { throw new StorvexError('Invalid JSON body', 400, 'INVALID_JSON'); }
 }
 
 async function readRaw(request, maxBytes = 300 * 1024 * 1024) {
@@ -61,7 +61,7 @@ async function readRaw(request, maxBytes = 300 * 1024 * 1024) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > maxBytes) throw new VaultError('Object exceeds 300 MB API limit', 413, 'PAYLOAD_TOO_LARGE');
+    if (size > maxBytes) throw new StorvexError('Object exceeds 300 MB API limit', 413, 'PAYLOAD_TOO_LARGE');
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
@@ -69,12 +69,12 @@ async function readRaw(request, maxBytes = 300 * 1024 * 1024) {
 
 const decodeKey = (segment) => {
   try { return decodeURIComponent(segment); }
-  catch { throw new VaultError('Invalid object key', 400, 'INVALID_KEY'); }
+  catch { throw new StorvexError('Invalid object key', 400, 'INVALID_KEY'); }
 };
 
 function s3ObjectKey(url) {
   const match = url.pathname.match(/^\/s3\/([^/]+)\/(.+)$/);
-  if (!match) throw new VaultError('S3 route not found', 404, 'NOT_FOUND');
+  if (!match) throw new StorvexError('S3 route not found', 404, 'NOT_FOUND');
   const bucket = decodeKey(match[1]);
   const key = decodeKey(match[2]);
   return `${bucket}/${key}`;
@@ -84,41 +84,41 @@ async function s3Api(request, response, url) {
   const key = s3ObjectKey(url);
   if (request.method === 'PUT') {
     const buffer = await readRaw(request);
-    const storageClass = (request.headers['x-vault-storage-class'] || 'hot').toString().toLowerCase() === 'cold' ? 'cold' : 'hot';
-    const record = await vault.putObject(key, buffer, { contentType: request.headers['content-type'] || 'application/octet-stream', storageClass });
+    const storageClass = (request.headers['x-storvex-storage-class'] || request.headers['x-vault-storage-class'] || 'hot').toString().toLowerCase() === 'cold' ? 'cold' : 'hot';
+    const record = await storvex.putObject(key, buffer, { contentType: request.headers['content-type'] || 'application/octet-stream', storageClass });
     response.writeHead(200, {
       ...securityHeaders,
       ETag: `"${record.checksum}"`,
-      'X-Vault-Version': String(record.version),
-      'X-Vault-Storage-Class': record.storageClass,
+      'X-Storvex-Version': String(record.version),
+      'X-Storvex-Storage-Class': record.storageClass,
       'Content-Length': '0',
     });
     return response.end();
   }
   if (request.method === 'GET' || request.method === 'HEAD') {
-    const { buffer, record } = await vault.getObject(key);
+    const { buffer, record } = await storvex.getObject(key);
     response.writeHead(200, {
       ...securityHeaders,
       'Content-Type': record.contentType,
       'Content-Length': buffer.length,
       ETag: `"${record.checksum}"`,
-      'X-Vault-Version': String(record.version),
-      'X-Vault-Storage-Class': record.storageClass,
+      'X-Storvex-Version': String(record.version),
+      'X-Storvex-Storage-Class': record.storageClass,
     });
     return request.method === 'HEAD' ? response.end() : response.end(buffer);
   }
   if (request.method === 'DELETE') {
-    await vault.deleteObject(key, Number(url.searchParams.get('retentionMs') ?? 86400000));
+    await storvex.deleteObject(key, Number(url.searchParams.get('retentionMs') ?? 86400000));
     response.writeHead(204, securityHeaders);
     return response.end();
   }
-  throw new VaultError('S3 method not allowed', 405, 'METHOD_NOT_ALLOWED');
+  throw new StorvexError('S3 method not allowed', 405, 'METHOD_NOT_ALLOWED');
 }
 
 async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
-    await vault.refreshNodeHealth();
-    const status = vault.clusterStatus();
+    await storvex.refreshNodeHealth();
+    const status = storvex.clusterStatus();
     const healthyStorageNodes = status.nodes.filter((node) => node.status === 'healthy').length;
     const healthyMetadataNodes = status.metadataControlPlane.healthyNodes;
     const ready = healthyStorageNodes >= status.policy.writeQuorum && healthyMetadataNodes >= status.metadataControlPlane.majority;
@@ -132,73 +132,73 @@ async function api(request, response, url) {
     });
   }
   if (request.method === 'GET' && url.pathname === '/api/status') {
-    await vault.refreshNodeHealth();
-    return sendJson(response, 200, { ...vault.clusterStatus(), googleCloud: mirror.status() });
+    await storvex.refreshNodeHealth();
+    return sendJson(response, 200, { ...storvex.clusterStatus(), googleCloud: mirror.status() });
   }
-  if (request.method === 'GET' && url.pathname === '/api/objects') return sendJson(response, 200, { objects: vault.listObjects() });
+  if (request.method === 'GET' && url.pathname === '/api/objects') return sendJson(response, 200, { objects: storvex.listObjects() });
   if (request.method === 'POST' && url.pathname === '/api/objects') {
     const body = await parseJson(request);
     const buffer = Buffer.from(body.data || '', 'base64');
-    const record = await vault.putObject(body.key, buffer, { contentType: body.contentType, policy: body.policy, storageClass: body.storageClass });
+    const record = await storvex.putObject(body.key, buffer, { contentType: body.contentType, policy: body.policy, storageClass: body.storageClass });
     const cloudMirror = await mirror.put(body.key, buffer, body.contentType);
     return sendJson(response, 201, { object: record, cloudMirror });
   }
   if (request.method === 'GET' && url.pathname.startsWith('/api/objects/')) {
     const key = decodeKey(url.pathname.slice('/api/objects/'.length));
-    const { buffer, record } = await vault.getObject(key);
+    const { buffer, record } = await storvex.getObject(key);
     response.writeHead(200, {
       ...securityHeaders, 'Content-Type': record.contentType, 'Content-Length': buffer.length,
       'Content-Disposition': `attachment; filename="${path.basename(record.key).replace(/["\r\n]/g, '_')}"`,
-      'X-Vault-Version': String(record.version), 'X-Vault-Checksum': record.checksum,
+      'X-Storvex-Version': String(record.version), 'X-Storvex-Checksum': record.checksum,
     });
     return response.end(buffer);
   }
   if (request.method === 'DELETE' && url.pathname.startsWith('/api/objects/')) {
     const key = decodeKey(url.pathname.slice('/api/objects/'.length));
     const retentionMs = Number(url.searchParams.get('retentionMs') ?? 86400000);
-    return sendJson(response, 202, { tombstone: await vault.deleteObject(key, retentionMs) });
+    return sendJson(response, 202, { tombstone: await storvex.deleteObject(key, retentionMs) });
   }
   if (request.method === 'PATCH' && /^\/api\/nodes\/[^/]+$/.test(url.pathname)) {
     const nodeId = decodeKey(url.pathname.split('/').at(-1));
     const body = await parseJson(request);
-    let node = vault.setNodeStatus(nodeId, body.status);
-    if (body.status === 'healthy') node = await vault.waitForNodeHealthy(nodeId);
+    let node = storvex.setNodeStatus(nodeId, body.status);
+    if (body.status === 'healthy') node = await storvex.waitForNodeHealthy(nodeId);
     return sendJson(response, 200, { node });
   }
-  if (request.method === 'POST' && url.pathname === '/api/integrity-scan') return sendJson(response, 200, { report: await vault.integrityScan() });
-  if (request.method === 'POST' && url.pathname === '/api/rebalance') return sendJson(response, 200, { report: await vault.rebalance() });
-  if (request.method === 'POST' && url.pathname === '/api/garbage-collect') return sendJson(response, 200, { report: await vault.garbageCollect() });
+  if (request.method === 'POST' && url.pathname === '/api/integrity-scan') return sendJson(response, 200, { report: await storvex.integrityScan() });
+  if (request.method === 'POST' && url.pathname === '/api/rebalance') return sendJson(response, 200, { report: await storvex.rebalance() });
+  if (request.method === 'POST' && url.pathname === '/api/garbage-collect') return sendJson(response, 200, { report: await storvex.garbageCollect() });
   if (request.method === 'POST' && url.pathname === '/api/faults/corrupt') {
     const body = await parseJson(request);
-    return sendJson(response, 200, { fault: await vault.corruptReplica(body.key, body.nodeId) });
+    return sendJson(response, 200, { fault: await storvex.corruptReplica(body.key, body.nodeId) });
   }
   if (request.method === 'POST' && url.pathname === '/api/faults/crash-node') {
     const body = await parseJson(request);
-    return sendJson(response, 200, { node: vault.crashStorageNode(body.nodeId) });
+    return sendJson(response, 200, { node: storvex.crashStorageNode(body.nodeId) });
   }
   if (request.method === 'POST' && url.pathname === '/api/demo/seed') {
     const samples = [
-      ['research/aurora-model.bin', 'Vault demo model checkpoint · immutable sample payload', 'hot'],
-      ['media/orbit-launch.mp4', 'Vault demo media segment · replicated sample payload', 'hot'],
+      ['research/aurora-model.bin', 'Storvex demo model checkpoint · immutable sample payload', 'hot'],
+      ['media/orbit-launch.mp4', 'Storvex demo media segment · replicated sample payload', 'hot'],
       ['logs/telemetry-2026-09.jsonl', '{"service":"gateway","status":"healthy"}\n', 'hot'],
-      ['backups/customer-ledger.snap', 'Vault demo encrypted database snapshot', 'cold'],
+      ['backups/customer-ledger.snap', 'Storvex demo encrypted database snapshot', 'cold'],
     ];
-    for (const [key, value, storageClass] of samples) await vault.putObject(key, Buffer.from(value), { contentType: 'application/octet-stream', storageClass });
+    for (const [key, value, storageClass] of samples) await storvex.putObject(key, Buffer.from(value), { contentType: 'application/octet-stream', storageClass });
     return sendJson(response, 201, { seeded: samples.length });
   }
-  throw new VaultError('API route not found', 404, 'NOT_FOUND');
+  throw new StorvexError('API route not found', 404, 'NOT_FOUND');
 }
 
 async function serveStatic(response, url) {
   const requested = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
   const filePath = path.resolve(publicDir, requested);
-  if (!filePath.startsWith(`${publicDir}${path.sep}`) && filePath !== path.join(publicDir, 'index.html')) throw new VaultError('Not found', 404, 'NOT_FOUND');
+  if (!filePath.startsWith(`${publicDir}${path.sep}`) && filePath !== path.join(publicDir, 'index.html')) throw new StorvexError('Not found', 404, 'NOT_FOUND');
   try {
     const content = await readFile(filePath);
     response.writeHead(200, { ...securityHeaders, 'Content-Type': mimeTypes[path.extname(filePath)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     response.end(content);
   } catch (error) {
-    if (error.code === 'ENOENT') throw new VaultError('Not found', 404, 'NOT_FOUND');
+    if (error.code === 'ENOENT') throw new StorvexError('Not found', 404, 'NOT_FOUND');
     throw error;
   }
 }
@@ -214,22 +214,22 @@ const server = createServer(async (request, response) => {
         response.setHeader('Retry-After', String(Math.ceil(rate.retryAfterMs / 1000)));
         return sendJson(response, 429, { error: 'Rate limit exceeded', code: 'RATE_LIMITED' });
       }
-      const expectedKey = process.env.VAULT_API_KEY;
+      const expectedKey = process.env.STORVEX_API_KEY || process.env.VAULT_API_KEY;
       if (!hasValidApiKey(request.headers.authorization, expectedKey)) return sendJson(response, 401, { error: 'Authentication required', code: 'UNAUTHORIZED' });
       if (url.pathname.startsWith('/s3/')) await s3Api(request, response, url);
       else await api(request, response, url);
     }
     else await serveStatic(response, url);
   } catch (error) {
-    const status = error instanceof VaultError ? error.status : 500;
+    const status = error instanceof StorvexError ? error.status : 500;
     sendJson(response, status, { error: error.message || 'Internal server error', code: error.code || 'INTERNAL_ERROR' });
   }
 });
 
-if (!isServerless) server.listen(port, '0.0.0.0', () => console.log(`Vault listening on http://localhost:${port}`));
+if (!isServerless) server.listen(port, '0.0.0.0', () => console.log(`Storvex listening on http://localhost:${port}`));
 
 function shutdown() {
-  vault.close().finally(() => server.close(() => process.exit(0)));
+  storvex.close().finally(() => server.close(() => process.exit(0)));
 }
 if (!isServerless) {
   process.on('SIGTERM', shutdown);

@@ -7,7 +7,7 @@ const read = (relative) => readFile(new URL(relative, root), 'utf8');
 
 describe('evaluation readiness evidence', () => {
   test('problem statement capabilities are represented in code and docs', async () => {
-    const [engine, readme] = await Promise.all([read('src/core/vault-engine.js'), read('README.md')]);
+    const [engine, readme] = await Promise.all([read('src/core/storvex-engine.js'), read('README.md')]);
     for (const phrase of [
       'replicationFactor', 'writeQuorum', 'readQuorum', 'integrityScan', 'rebalance',
       'tombstone', 'garbageCollect', '10+4', 'Raft', 'storage-node HTTP processes',
@@ -20,7 +20,7 @@ describe('evaluation readiness evidence', () => {
     const [server, auth] = await Promise.all([read('src/server.js'), read('src/gateway/auth.js')]);
     for (const phrase of [
       'Content-Security-Policy', 'X-Content-Type-Options', 'Permissions-Policy',
-      'VAULT_API_KEY', 'timingSafeEqual', 'RATE_LIMITED', 'PAYLOAD_TOO_LARGE', 'path.resolve',
+      'STORVEX_API_KEY', 'timingSafeEqual', 'RATE_LIMITED', 'PAYLOAD_TOO_LARGE', 'path.resolve',
     ]) {
       assert.match(`${server}\n${auth}`, new RegExp(phrase.replace('-', '\\-')));
     }

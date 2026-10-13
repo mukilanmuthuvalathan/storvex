@@ -1,6 +1,6 @@
-# Vault
+# Storvex
 
-Vault is a fault-tolerant distributed object storage prototype built for the Prompt-a-thon systems challenge. It stores real object bytes as immutable chunks on independent storage-node processes, commits versioned manifests through Raft, verifies every artifact with SHA-256, and repairs damage in the background.
+Storvex is a distributed object storage prototype being developed for company use. It stores real object bytes as immutable chunks on independent storage-node processes, commits versioned manifests through an in-process majority metadata simulation, verifies artifacts with SHA-256, and repairs damage in the background. The current implementation is not ready to hold production company data.
 
 The operator dashboard is part of the working system. Store or retrieve objects, take nodes offline, create a network partition, corrupt a replica, and run an integrity scan while watching the cluster remain available and repair itself.
 
@@ -36,13 +36,13 @@ flowchart TB
    Repair --> Z3
 ```
 
-The API gateway provides routing, request-size enforcement, security headers, optional bearer authentication through `VAULT_API_KEY`, and per-client sliding-window rate limiting. The metadata control plane writes every catalog revision to a majority of five Raft members before it is considered committed. The placement and read paths are separate modules so topology decisions never leak into transport or metadata code.
+The API gateway provides routing, request-size enforcement, security headers, optional bearer authentication through `STORVEX_API_KEY`, and per-client sliding-window rate limiting. The metadata control plane writes every catalog revision to a majority of five Raft members before it is considered committed. The placement and read paths are separate modules so topology decisions never leak into transport or metadata code.
 
 ## Why this design
 
-Vault uses fifteen independent storage nodes across three zones and separate racks. In the normal app mode, those nodes run as separate HTTP processes on ports `9101-9115`; the gateway stores and retrieves object bytes through node APIs instead of touching every disk folder directly. Hot objects use `N=3`, `R=2`, `W=2`; cold objects use real Reed–Solomon `10+4` erasure coding. Files are divided into immutable 64 MB chunks, while the manifest records every chunk hash, placement, storage class, policy, and object version. Writes use a temporary file plus atomic rename inside the selected storage-node process. The manifest becomes visible only after a Raft majority commits it. A per-object lock serializes concurrent versions without blocking unrelated keys.
+Storvex uses fifteen independent storage nodes across three zones and separate racks. In the normal app mode, those nodes run as separate HTTP processes on ports `9101-9115`; the gateway stores and retrieves object bytes through node APIs instead of touching every disk folder directly. Hot objects use `N=3`, `R=2`, `W=2`; cold objects use real Reed–Solomon `10+4` erasure coding. Files are divided into immutable 64 MB chunks, while the manifest records every chunk hash, placement, storage class, policy, and object version. Writes use a temporary file plus atomic rename inside the selected storage-node process. The manifest becomes visible only after a Raft majority commits it. A per-object lock serializes concurrent versions without blocking unrelated keys.
 
-| Requirement | Vault implementation |
+| Requirement | Storvex implementation |
 |---|---|
 | Concurrent reads and writes | Per-key lock queues writes; reads and different keys proceed concurrently |
 | Configurable durability | Per-object storage class, replication factor, read quorum, and write quorum |
@@ -59,7 +59,7 @@ Vault uses fifteen independent storage nodes across three zones and separate rac
 
 ## Write and read guarantees
 
-A write is accepted only after Vault splits the file into immutable chunks, hashes every chunk or fragment, places artifacts across independent zones and racks, reaches the configured durability quorum, and commits the versioned manifest through a majority of the five Raft members. The client receives success only after that manifest commit.
+A write is accepted only after Storvex splits the file into immutable chunks, hashes every chunk or fragment, places artifacts across independent zones and racks, reaches the configured durability quorum, and commits the versioned manifest through a majority of the five Raft members. The client receives success only after that manifest commit.
 
 A read starts from the strongly consistent manifest, selects healthy artifacts by latency, verifies every hash, and never returns a corrupt artifact. A failed or corrupt copy is bypassed immediately and submitted to the priority repair scheduler. Cold chunks can be reconstructed from any ten of their fourteen fragments.
 
@@ -67,7 +67,7 @@ No object is marked fully healthy unless its artifacts span the required failure
 
 ## Run locally
 
-Requirements: Node.js 20 or newer. Vault has no third-party runtime dependencies.
+Requirements: Node.js 20 or newer. Storvex has no third-party runtime dependencies.
 
 ```bash
 npm start
@@ -83,13 +83,17 @@ Open `http://localhost:8080`. Click **Load demo data**, then use the **Failure l
 4. Show the repaired count, recovery duration, replica placement, and audit stream.
 5. Heal all nodes and show the cluster returning to full health.
 
-For a command-line proof of independent storage nodes, stop one managed storage process during the demo and refresh the dashboard. Vault marks that node as partitioned and continues serving objects from quorum replicas.
+For a command-line proof of independent storage nodes, stop one managed storage process during the demo and refresh the dashboard. Storvex marks that node as partitioned and continues serving objects from quorum replicas.
 
 You can also run the containerized demo with a readiness health check:
 
 ```bash
 docker compose up --build
 ```
+
+Docker stores both object data and metadata in the `storvex-data` volume mapping, which survives container restarts and recreation. Do not remove this volume (including with `docker compose down --volumes`) when it contains data you need. The gateway is bound to `127.0.0.1:8080` and storage-node ports are internal to the container. Docker restarts Storvex after an unexpected exit while the Docker engine is running.
+
+This setup runs fifteen independent storage-node HTTP processes in one container on one machine. It does not provide machine or zone failure isolation. Company deployment still requires authentication, protected remote access, off-host backups with tested restoration, and fixes to metadata recovery and concurrent object lifecycle operations.
 
 ## Verify
 
@@ -125,14 +129,16 @@ The test suite verifies zone-aware replication, node-failure availability, manag
 
 ## Google Cloud deployment
 
-Vault includes a production container and Cloud Build pipeline for Cloud Run. When `GCS_MIRROR_BUCKET` is configured, every committed object is also mirrored to Google Cloud Storage through the Cloud Run service identity. Give that service account `roles/storage.objectCreator` on the bucket.
+Storvex includes a production container and Cloud Build pipeline for Cloud Run. When `GCS_MIRROR_BUCKET` is configured, every committed object is also mirrored to Google Cloud Storage through the Cloud Run service identity. Give that service account `roles/storage.objectCreator` on the bucket.
 
 ```bash
 gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_REGION=asia-south1,_REPOSITORY=vault,_BUCKET=YOUR_BUCKET
+  --substitutions=_REGION=asia-south1,_REPOSITORY=storvex,_BUCKET=YOUR_BUCKET
 ```
 
-Cloud Run's writable filesystem is ephemeral, so the local node fabric demonstrates the replication engine while the GCS mirror supplies durable disaster recovery across container restarts. A production deployment would run every storage node and Raft voter as an independently failing regional service backed by persistent disks.
+The current GCS integration is an optional, best-effort upload copy. It does not implement reads, catalog restoration, or recovery after a container restart; an upload can succeed even if the mirror fails. Cloud Run's ephemeral local filesystem therefore remains a data-loss risk with this configuration. Deploying this container with a bucket alone does not provide durable storage and retrieval.
+
+The Vercel deployment also stores objects and metadata on temporary function-instance storage. Successful upload and immediate download do not establish persistence across instances, restarts, or deployments. Company use requires a persistent authoritative data and metadata backend, tested recovery, access control, and operational monitoring before production rollout.
 
 ## Production boundary
 
@@ -145,3 +151,11 @@ The server validates object keys, policies, request size, node state, and JSON i
 ## Repository constraints
 
 Generated object data is ignored by Git. The repository contains source and deployment files only, stays far below the 10 MB submission limit, and is intended to be submitted from one public branch.
+
+## Storvex links and configuration
+
+- Source: https://github.com/mukilanmuthuvalathan/storvex
+- Public dashboard: https://storvex-storage.vercel.app
+- Local workspace: http://localhost:8180
+
+New environment variables use the `STORVEX_` prefix. The gateway also accepts the previous `VAULT_` environment variables and `x-vault-storage-class` request header for existing integrations. Docker maps `storvex-data` to the previous physical volume name `promptathon-project_vault-data` by default so renaming the app does not discard existing objects. Set `STORVEX_VOLUME_NAME` only when intentionally selecting a different data volume.
