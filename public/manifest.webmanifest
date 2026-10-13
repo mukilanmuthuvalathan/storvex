@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Storvex",
+  "short_name": "Storvex",
+  "description": "Your object storage workspace",
+  "start_url": "/#overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f8fa",
+  "theme_color": "#191924",
+  "icons": [
+    {
+      "src": "/storvex-logo.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

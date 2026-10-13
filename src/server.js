@@ -27,6 +27,7 @@ if (!isServerless) storvex.startBackgroundRepair(Number(process.env.REPAIR_INTER
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.ico': 'image/x-icon',
+  '.png': 'image/png', '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 const securityHeaders = {

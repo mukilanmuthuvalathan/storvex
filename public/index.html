@@ -6,7 +6,9 @@
   <meta name="description" content="Storvex — a clear, connected workspace for your object storage.">
   <meta name="theme-color" content="#191924">
   <title>Overview · Storvex</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/storvex-logo.png" type="image/png" sizes="1254x1254">
+  <link rel="apple-touch-icon" href="/storvex-logo.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;550;600;650;700&amp;family=Manrope:wght@400;500;600;650;700;750;800&amp;display=swap" rel="stylesheet">
@@ -17,7 +19,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="shell">
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
-      <a class="brand" href="#overview" aria-label="Storvex home"><span class="brand-mark" data-icon="storvex"></span><span>storvex<span class="brand-period">.</span></span></a>
+      <a class="brand" href="#overview" aria-label="Storvex home"><img class="brand-logo" src="/storvex-logo.png" alt="" width="44" height="44" fetchpriority="high"><span>storvex<span class="brand-period">.</span></span></a>
       <div class="workspace"><span class="workspace-symbol">S</span><div><strong>Your workspace</strong><small>Object storage</small></div><span class="workspace-dot" aria-label="Local workspace"></span></div>
       <p class="nav-caption">WORKSPACE</p>
       <nav>
@@ -42,9 +44,9 @@
       <main id="main">
         <div class="connection-alert" id="connection-alert" role="status" hidden>Could not connect to Storvex. Your last loaded data is shown. Try refreshing.</div>
         <div class="page-heading"><div><p class="eyebrow" id="page-eyebrow">YOUR STORAGE, AT A GLANCE</p><h1 id="page-title">Overview<span class="heading-dot">.</span></h1><p class="subtitle" id="page-description">Everything you store. Everything you need to know.</p></div><button class="btn primary" id="upload-button"><span data-icon="plus"></span>Upload object</button></div>
-        <section class="hero" data-views="overview" aria-label="Welcome to your storage workspace">
+        <section class="hero logo-hero" data-views="overview" aria-label="Welcome to your storage workspace">
           <div class="hero-copy"><span class="hero-eyebrow"><i></i>BUILT AROUND YOUR DATA</span><h2>Big ideas.<br>A better place to store them.</h2><p>From your first file to your next big project.<br>Keep your data organized, accessible, and in view.</p><a class="hero-link" href="#objects">Open your object catalog <span data-icon="arrow"></span></a></div>
-          <div class="hero-visual" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><span class="floating-dot dot-one"></span><span class="floating-dot dot-two"></span><div class="storage-stack"><div class="stack-layer layer-top"><span data-icon="storvex"></span><span class="stack-lights"><i></i><i></i><i></i></span></div><div class="stack-layer layer-middle"><span class="stack-lines"></span><span class="stack-lights"><i></i><i></i><i></i></span></div><div class="stack-layer layer-bottom"><span class="stack-lines"></span><span class="stack-lights"><i></i><i></i><i></i></span></div></div><div class="hero-chip chip-top"><span data-icon="layers"></span>Immutable objects</div><div class="hero-chip chip-bottom"><span class="chip-dot"></span>Checksum verification</div></div>
+          <div class="hero-visual" aria-hidden="true"><img class="brand-artwork" src="/storvex-logo.png" alt="" width="1254" height="1254" decoding="async"></div>
         </section>
         <section class="metric-grid" data-views="overview" aria-label="Live cluster metrics">
           <article class="metric-card"><div class="metric-head"><span>Stored objects</span><span class="metric-icon" data-icon="folder"></span></div><strong class="metric-number" id="object-count">—</strong><div class="metric-foot"><span class="metric-pill" id="object-health-summary">Waiting for data</span><span>in your catalog</span></div></article>
