@@ -1,6 +1,6 @@
 # Storvex
 
-<img src="public/storvex-logo.png" alt="Storvex logo" width="160" height="160">
+<img src="public/storvex-icon.png" alt="Storvex project icon" width="160" height="160">
 
 Storvex is a distributed object storage prototype being developed for company use. It stores real object bytes as immutable chunks on independent storage-node processes, commits versioned manifests through an in-process majority metadata simulation, verifies artifacts with SHA-256, and repairs damage in the background. The current implementation is not ready to hold production company data.
 

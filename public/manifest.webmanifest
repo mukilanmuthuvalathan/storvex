@@ -10,7 +10,7 @@
   "theme_color": "#191924",
   "icons": [
     {
-      "src": "/storvex-logo.png",
+      "src": "/storvex-icon.png",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any"

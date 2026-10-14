@@ -413,6 +413,14 @@ nav {
   border-radius:50%
 }
 
+.profile-logo {
+  display:block;
+  object-fit:contain;
+  border-radius:7px;
+  border:1px solid #173954;
+  background:#030a14;
+}
+
 .avatar {
   width:32px;
   height:32px;

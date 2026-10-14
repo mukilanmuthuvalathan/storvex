@@ -6,9 +6,20 @@
   <meta name="description" content="Storvex — a clear, connected workspace for your object storage.">
   <meta name="theme-color" content="#191924">
   <title>Overview · Storvex</title>
-  <link rel="icon" href="/storvex-logo.png" type="image/png" sizes="1254x1254">
-  <link rel="apple-touch-icon" href="/storvex-logo.png">
+  <link rel="icon" href="/storvex-icon.png" type="image/png" sizes="1254x1254">
+  <link rel="apple-touch-icon" href="/storvex-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Storvex">
+  <meta property="og:title" content="Storvex — Object Storage Workspace">
+  <meta property="og:description" content="A clear, connected workspace to store, retrieve, and look after your data.">
+  <meta property="og:image" content="https://storvex-storage.vercel.app/storvex-icon.jpg">
+  <meta property="og:image:alt" content="Storvex cloud, storage, and security emblem">
+  <meta property="og:image:width" content="1254">
+  <meta property="og:image:height" content="1254">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Storvex — Object Storage Workspace">
+  <meta name="twitter:image" content="https://storvex-storage.vercel.app/storvex-icon.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;550;600;650;700&amp;family=Manrope:wght@400;500;600;650;700;750;800&amp;display=swap" rel="stylesheet">
@@ -19,7 +30,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="shell">
     <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
-      <a class="brand" href="#overview" aria-label="Storvex home"><img class="brand-logo" src="/storvex-logo.png" alt="" width="44" height="44" fetchpriority="high"><span>storvex<span class="brand-period">.</span></span></a>
+      <a class="brand" href="#overview" aria-label="Storvex home"><img class="brand-logo" src="/storvex-icon.png" alt="" width="44" height="44" fetchpriority="high"><span>storvex<span class="brand-period">.</span></span></a>
       <div class="workspace"><span class="workspace-symbol">S</span><div><strong>Your workspace</strong><small>Object storage</small></div><span class="workspace-dot" aria-label="Local workspace"></span></div>
       <p class="nav-caption">WORKSPACE</p>
       <nav>
@@ -33,13 +44,13 @@
       <div class="sidebar-spacer"></div>
       <div class="sidebar-note"><span class="note-icon" data-icon="shield"></span><strong>A place for what matters.</strong><p>One workspace to store, retrieve, and look after your data.</p><a href="#plans">Explore storage options <span data-icon="arrow"></span></a></div>
       <button class="sidebar-help" id="help-button"><span data-icon="help"></span>Workspace guide<span data-icon="external"></span></button>
-      <div class="user-row"><span class="avatar">SX</span><div><strong>Workspace admin</strong><small>Local environment</small></div><span class="user-indicator"></span></div>
+      <div class="user-row"><img class="avatar profile-logo" src="/storvex-icon.png" width="32" height="32" alt="Storvex workspace"><div><strong>Workspace admin</strong><small>Local environment</small></div><span class="user-indicator"></span></div>
     </aside>
     <button class="sidebar-overlay" id="sidebar-overlay" aria-label="Close navigation" hidden></button>
     <div class="workspace-body">
       <header class="topbar">
         <div class="topbar-left"><button class="icon-button mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><span data-icon="menu"></span></button><span class="workspace-breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-current">Overview</strong></span></div>
-        <div class="topbar-actions"><span class="connection-pill" id="connection-pill"><i></i><span id="cluster-health">Connecting</span></span><span class="topbar-divider"></span><button class="icon-button" id="refresh-button" aria-label="Refresh workspace" title="Refresh workspace"><span data-icon="refresh"></span></button><span class="small-avatar" aria-label="Workspace admin">SX</span></div>
+        <div class="topbar-actions"><span class="connection-pill" id="connection-pill"><i></i><span id="cluster-health">Connecting</span></span><span class="topbar-divider"></span><button class="icon-button" id="refresh-button" aria-label="Refresh workspace" title="Refresh workspace"><span data-icon="refresh"></span></button><img class="small-avatar profile-logo" src="/storvex-icon.png" width="29" height="29" alt="Storvex workspace"></div>
       </header>
       <main id="main">
         <div class="connection-alert" id="connection-alert" role="status" hidden>Could not connect to Storvex. Your last loaded data is shown. Try refreshing.</div>
