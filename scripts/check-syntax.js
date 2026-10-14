@@ -14,6 +14,7 @@ const files = [
   'src/storage/storage-node-server.js',
   'public/app.js',
   'scripts/check-object-actions.cjs',
+  'scripts/check-docker-persistence.cjs',
 ];
 
 for (const file of files) {

@@ -101,6 +101,14 @@ Docker stores both object data and metadata in the `storvex-data` volume mapping
 
 This setup runs fifteen independent storage-node HTTP processes in one container on one machine. It does not provide machine or zone failure isolation. Company deployment still requires authentication, protected remote access, off-host backups with tested restoration, and fixes to metadata recovery and concurrent object lifecycle operations.
 
+To reuse an existing local `data` folder on port 8180, copy `docker.local.env.example` to the ignored `.env.docker.local` file. Stop the native gateway before running `docker compose --env-file .env.docker.local up -d --build`; never run two gateways against the same catalog. This bind mount keeps both the catalog and artifacts in the existing host folder across container recreation. The default Compose setup still uses the original named volume on port 8080. Keep an independent backup: persistence on one disk does not protect against disk failure or accidental deletion.
+
+`restart: unless-stopped` applies only while Docker is available. Enable Docker Desktop's **Start Docker Desktop when you sign in** setting for automatic startup after Windows login. Neither this setting nor a local Docker container makes the public Vercel backend persistent or reachable.
+
+On this Windows installation, the `StorvexDockerDesktop` entry under the current user's Windows **Run** startup settings starts Docker in the background after sign-in. Remove only that entry to undo the sign-in automation. A Windows reboot has not been used as a persistence test; container restart and recreation are tested separately.
+
+The optional `npm run test:docker` check requires the local Docker setup above. It verifies checksums for existing objects, creates one disposable object, restarts and recreates only this project's gateway, confirms data survives both operations, and tombstones only its own test object. It refuses remote URLs and verifies the container's project label, bind mount, and restart policy before changing it. Expect brief local downtime during the check.
+
 ## Verify
 
 ```bash

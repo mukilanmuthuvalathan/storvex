@@ -11,6 +11,7 @@
     "verify": "npm run check && npm test",
     "test": "node --test",
     "test:ui": "node scripts/check-object-actions.cjs",
+    "test:docker": "node scripts/check-docker-persistence.cjs",
     "test:coverage": "node --test --experimental-test-coverage",
     "audit": "npm audit --omit=dev",
     "check": "node scripts/check-syntax.js"

@@ -12,9 +12,9 @@ services:
       STORVEX_DATA_DIR: /app/data
       REPAIR_INTERVAL_MS: 15000
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${STORVEX_HOST_PORT:-8080}:8080"
     volumes:
-      - storvex-data:/app/data
+      - "${STORVEX_DATA_MOUNT:-storvex-data}:/app/data"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
