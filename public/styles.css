@@ -1263,6 +1263,108 @@ tbody tr:hover {
   background:var(--purple-light)
 }
 
+.object-actions {
+  display:flex;
+  align-items:center;
+  gap:4px
+}
+
+.object-action {
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  flex-shrink:0;
+  padding:0;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#705686;
+  cursor:pointer
+}
+
+.object-action .icon {
+  width:16px;
+  height:16px
+}
+
+.object-action:hover {
+  color:var(--purple);
+  background:var(--purple-light)
+}
+
+.delete-action:hover {
+  color:#a52b43;
+  background:#fff0f1
+}
+
+.object-action:disabled {
+  opacity:.45;
+  cursor:wait
+}
+
+#preview-dialog {
+  width:min(800px,calc(100% - 32px))
+}
+
+.preview-content {
+  padding:clamp(18px,4vw,28px)
+}
+
+#preview-title,#preview-key,#confirm-description {
+  overflow-wrap:anywhere
+}
+
+.preview-metadata {
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  padding:14px 0;
+  border-block:1px solid #eee7f5;
+  font-size:12px
+}
+
+.preview-metadata dt {
+  color:var(--muted);
+  margin-bottom:4px
+}
+
+.preview-metadata dd {
+  margin:0;
+  font-weight:600
+}
+
+.preview-status {
+  font-size:12px;
+  line-height:1.6;
+  margin:16px 0;
+  color:#655575
+}
+
+.preview-body {
+  max-height:50dvh;
+  overflow:auto;
+  border-radius:8px;
+  background:#f6f4f9
+}
+
+.preview-body img {
+  display:block;
+  width:auto;
+  max-width:100%;
+  max-height:50dvh;
+  object-fit:contain;
+  margin:auto
+}
+
+.preview-body pre {
+  margin:0;
+  padding:18px;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  font:12px/1.7 ui-monospace,Consolas,monospace
+}
+
 .catalog-footer {
   display:flex;
   align-items:center;

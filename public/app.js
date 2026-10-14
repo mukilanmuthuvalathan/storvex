@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { status: null, objects: [], busy: false, uploading: false, refreshing: false, filter: 'all', view: 'overview' };
+const state = { status: null, objects: [], busy: false, uploading: false, refreshing: false, catalogRevision: 0, filter: 'all', view: 'overview' };
 const icons = {
   storvex: '<path d="M12 3 21 7.5v9L12 21l-9-4.5v-9L12 3Z"/><path d="m3 7.5 9 5 9-5M12 12.5V21"/><path d="m7.5 5.25 9 5"/>',
   overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
@@ -16,6 +16,8 @@ const icons = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/>',
   file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',
   download: '<path d="M12 3v12m-5-5 5 5 5-5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/>',
   upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
@@ -138,12 +140,24 @@ function openUpload(storageClass = 'hot') {
   $('#upload-status').textContent = '';
   $('#upload-dialog').showModal();
 }
-async function refresh({ quiet = true } = {}) {
-  if (state.refreshing) return;
+let refreshInFlight = null;
+async function refresh({ quiet = true, afterMutation = false } = {}) {
+  if (afterMutation) {
+    // Ignore an older catalog response that arrives after a successful mutation.
+    state.catalogRevision++;
+    if (refreshInFlight) await refreshInFlight;
+  } else if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = loadWorkspace({ quiet });
+  try { await refreshInFlight; }
+  finally { refreshInFlight = null; }
+}
+async function loadWorkspace({ quiet }) {
+  const revision = state.catalogRevision;
   state.refreshing = true;
   $('#refresh-button').disabled = true;
   try {
     const [status, objects] = await Promise.all([request('/api/status'), request('/api/objects')]);
+    if (revision !== state.catalogRevision) return;
     state.status = status;
     state.objects = objects.objects;
     $('#connection-alert').hidden = true;
@@ -192,11 +206,15 @@ function render() {
 const renderedMarkup = new WeakMap();
 function setMarkup(element, markup) {
   if (renderedMarkup.get(element) === markup) return;
-  const focusedKey = document.activeElement?.dataset.downloadKey;
+  const focused = document.activeElement;
+  const focusAttribute = ['data-preview-key', 'data-download-key', 'data-delete-key']
+    .find((attribute) => element.contains(focused) && focused.hasAttribute(attribute));
+  const focusedKey = focusAttribute ? focused.getAttribute(focusAttribute) : null;
   element.innerHTML = markup;
   renderedMarkup.set(element, markup);
-  if (focusedKey) {
-    [...element.querySelectorAll('[data-download-key]')].find((link) => link.dataset.downloadKey === focusedKey)?.focus({ preventScroll: true });
+  if (focusedKey !== null) {
+    [...element.querySelectorAll('[' + focusAttribute + ']')]
+      .find((control) => control.getAttribute(focusAttribute) === focusedKey)?.focus({ preventScroll: true });
   }
 }
 function renderNodes(nodes) {
@@ -222,7 +240,7 @@ function renderObjects() {
     const type = ['mp4', 'png', 'jpg', 'jpeg', 'webp', 'svg', 'mov'].includes(extension) ? 'media' : ['json', 'jsonl', 'js', 'csv', 'txt', 'yaml'].includes(extension) ? 'code' : ['snap', 'zip', 'gz', 'tar', 'bin'].includes(extension) ? 'archive' : '';
     const cold = object.storageClass === 'cold';
     const artifactCount = object.replicas.length + (cold ? ' fragments' : ' copies');
-    return '<tr><td><span class="object-name"><span class="object-file-icon ' + type + '">' + icon('file') + '</span><span><strong title="' + escapeHtml(key) + '">' + escapeHtml(filename) + '</strong><small>' + escapeHtml(parent) + ' · v' + object.version + '</small></span></span></td><td><span class="storage-tag' + (cold ? ' cold' : '') + '" title="' + artifactCount + '">' + (cold ? 'Cold' : 'Hot') + '</span></td><td>' + formatBytes(object.size) + '</td><td><span class="health-tag ' + escapeHtml(object.health) + '"><i></i>' + escapeHtml(object.health) + '</span></td><td><time datetime="' + escapeHtml(object.updatedAt) + '">' + relativeTime(object.updatedAt) + '</time></td><td><a class="download-link" data-download-key="' + escapeHtml(key) + '" href="/api/objects/' + encodeURIComponent(key) + '" aria-label="Download ' + escapeHtml(key) + '" title="Download ' + escapeHtml(key) + '">' + icon('download') + '</a></td></tr>';
+    return '<tr><td><span class="object-name"><span class="object-file-icon ' + type + '">' + icon('file') + '</span><span><strong title="' + escapeHtml(key) + '">' + escapeHtml(filename) + '</strong><small>' + escapeHtml(parent) + ' · v' + object.version + '</small></span></span></td><td><span class="storage-tag' + (cold ? ' cold' : '') + '" title="' + artifactCount + '">' + (cold ? 'Cold' : 'Hot') + '</span></td><td>' + formatBytes(object.size) + '</td><td><span class="health-tag ' + escapeHtml(object.health) + '"><i></i>' + escapeHtml(object.health) + '</span></td><td><time datetime="' + escapeHtml(object.updatedAt) + '">' + relativeTime(object.updatedAt) + '</time></td><td><div class="object-actions"><button type="button" class="object-action" data-preview-key="' + escapeHtml(key) + '" aria-label="Preview ' + escapeHtml(key) + '" title="Preview">' + icon('eye') + '</button><a class="object-action download-link" data-download-key="' + escapeHtml(key) + '" href="/api/objects/' + encodeURIComponent(key) + '" aria-label="Download ' + escapeHtml(key) + '" title="Download ' + escapeHtml(key) + '">' + icon('download') + '</a><button type="button" class="object-action delete-action" data-delete-key="' + escapeHtml(key) + '" aria-label="Delete ' + escapeHtml(key) + '" title="Delete"' + (state.busy ? ' disabled' : '') + '>' + icon('trash') + '</button></div></td></tr>';
   }).join('');
   setMarkup($('#object-table'), markup);
   $('#catalog-count').textContent = state.objects.length;
@@ -243,7 +261,7 @@ async function withBusy(action) {
   if (state.busy) return;
   state.busy = true;
   $('#main').setAttribute('aria-busy', 'true');
-  const buttons = document.querySelectorAll('.maintenance-actions button, #store-submit');
+  const buttons = document.querySelectorAll('.maintenance-actions button, #store-submit, [data-delete-key]');
   buttons.forEach((button) => { button.disabled = true; });
   try { await action(); }
   catch (error) {
@@ -253,21 +271,147 @@ async function withBusy(action) {
     state.busy = false;
     state.uploading = false;
     $('#main').removeAttribute('aria-busy');
-    buttons.forEach((button) => { button.disabled = false; });
+    document.querySelectorAll('.maintenance-actions button, #store-submit, [data-delete-key]')
+      .forEach((button) => { button.disabled = false; });
   }
 }
-function confirmAction(title, detail) {
+function confirmAction(title, detail, acceptLabel = 'Continue') {
   const dialog = $('#confirm-dialog');
   $('#confirm-title').textContent = title;
   $('#confirm-description').textContent = detail;
+  $('#confirm-accept').textContent = acceptLabel;
   dialog.returnValue = '';
   return new Promise((resolve) => {
     $('#confirm-accept').onclick = () => dialog.close('confirm');
     $('#confirm-cancel').onclick = () => dialog.close('cancel');
     dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), { once: true });
     dialog.showModal();
+    $('#confirm-cancel').focus();
   });
 }
+
+const previewLimits = { text: 2 * 1024 * 1024, image: 10 * 1024 * 1024 };
+const rasterTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']);
+const textExtensions = new Set(['txt', 'md', 'csv', 'json', 'jsonl', 'yaml', 'yml', 'log', 'js', 'ts', 'css', 'html', 'xml', 'svg']);
+let previewController = null;
+function previewType(object) {
+  const mime = (object.contentType || '').split(';')[0].trim().toLowerCase();
+  const extension = object.key.split('.').pop().toLowerCase();
+  if (rasterTypes.has(mime)) return { kind: 'image', mime };
+  const imageMime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif' }[extension];
+  if ((!mime || mime === 'application/octet-stream') && imageMime) return { kind: 'image', mime: imageMime };
+  if (mime.startsWith('text/') || ['application/json', 'application/xml', 'image/svg+xml'].includes(mime) ||
+      ((!mime || mime === 'application/octet-stream') && textExtensions.has(extension))) return { kind: 'text' };
+  return null;
+}
+async function readPreviewBytes(response, limit) {
+  // Bound actual received bytes too: a newer object version may be larger.
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) throw new Error('This file is too large to preview. Download it instead.');
+      chunks.push(value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+async function openPreview(key) {
+  const object = state.objects.find((item) => item.key === key);
+  if (!object) return;
+  previewController?.abort();
+  const controller = new AbortController();
+  previewController = controller;
+  const dialog = $('#preview-dialog');
+  const body = $('#preview-body');
+  $('#preview-title').textContent = key.split('/').pop();
+  $('#preview-key').textContent = key;
+  $('#preview-size').textContent = formatBytes(object.size);
+  $('#preview-version').textContent = 'v' + object.version;
+  $('#preview-storage').textContent = object.storageClass === 'cold' ? 'Cold storage' : 'Hot storage';
+  $('#preview-download').href = '/api/objects/' + encodeURIComponent(key);
+  $('#preview-download').setAttribute('aria-label', 'Download ' + key);
+  body.replaceChildren();
+  $('#preview-status').textContent = '';
+  if (!dialog.open) dialog.showModal();
+  const type = previewType(object);
+  if (!type || object.size > previewLimits[type.kind]) {
+    $('#preview-status').textContent = !type
+      ? 'Preview is not available for this file type. Download the original to open it.'
+      : 'This file exceeds the preview limit (' + formatBytes(previewLimits[type.kind]) + '). Download the original to open it.';
+    return;
+  }
+  $('#preview-status').textContent = 'Reading and verifying your object…';
+  body.setAttribute('aria-busy', 'true');
+  try {
+    const response = await fetch('/api/objects/' + encodeURIComponent(key), {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(60000)]),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(typeof error.error === 'string' ? error.error : error.error?.message || 'Unable to read this object.');
+    }
+    const bytes = await readPreviewBytes(response, previewLimits[type.kind]);
+    let content;
+    if (type.kind === 'image') {
+      content = document.createElement('img');
+      content.alt = 'Preview of ' + key;
+      // Only allow raster MIME types. SVG and HTML are always literal text.
+      content.src = 'data:' + type.mime + ';base64,' + await fileToBase64(new Blob([bytes]));
+      await content.decode();
+    } else {
+      content = document.createElement('pre');
+      content.tabIndex = 0;
+      content.setAttribute('aria-label', 'File contents');
+      content.textContent = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+    if (controller !== previewController || controller.signal.aborted) return;
+    body.replaceChildren(content);
+    $('#preview-version').textContent = 'v' + (response.headers.get('X-Storvex-Version') || object.version);
+    $('#preview-size').textContent = formatBytes(bytes.byteLength);
+    $('#preview-status').textContent = 'Object read successfully. Integrity verified by Storvex.';
+  } catch (error) {
+    if (controller !== previewController || controller.signal.aborted) return;
+    $('#preview-status').textContent = 'Unable to preview: ' + error.message + ' You can try downloading the original.';
+  } finally {
+    if (controller === previewController) body.removeAttribute('aria-busy');
+  }
+}
+$('#preview-dialog').addEventListener('close', () => {
+  previewController?.abort();
+  previewController = null;
+  $('#preview-body').replaceChildren();
+  $('#preview-body').removeAttribute('aria-busy');
+});
+async function deleteObject(key) {
+  if (state.busy) return;
+  let deleted = false;
+  await withBusy(async () => {
+    if (!await confirmAction('Delete this object?', 'Delete “' + key + '”? It will disappear from the catalog and can no longer be read. Stored bytes are retained for 24 hours before garbage collection. There is no restore button.', 'Delete object')) return;
+    await request('/api/objects/' + encodeURIComponent(key), { method: 'DELETE' });
+    deleted = true;
+    state.objects = state.objects.filter((object) => object.key !== key);
+    renderObjects();
+    $('#object-search').focus({ preventScroll: true });
+    toast('Object deleted', key + ' has been removed from your catalog.');
+    await refresh({ afterMutation: true });
+  });
+  if (!deleted) {
+    [...document.querySelectorAll('[data-delete-key]')]
+      .find((button) => button.dataset.deleteKey === key)?.focus({ preventScroll: true });
+  }
+}
+
 function requireStatus() {
   if (!state.status) throw new Error('Wait for the workspace to connect first.');
   return state.status;
@@ -285,6 +429,10 @@ document.addEventListener('click', (event) => {
     setView(route.hash.slice(1), { focus: true });
     if (state.status) renderEvents(state.status.events);
   }
+  const preview = event.target.closest('[data-preview-key]');
+  if (preview) void openPreview(preview.dataset.previewKey);
+  const deletion = event.target.closest('[data-delete-key]');
+  if (deletion) void deleteObject(deletion.dataset.deleteKey);
   const upload = event.target.closest('[data-upload]');
   if (upload) openUpload(upload.dataset.upload);
   const close = event.target.closest('[data-close]');
@@ -353,7 +501,7 @@ $('#upload-form').addEventListener('submit', (event) => {
     $('#file-label').textContent = 'Any file type · up to 20 MB';
     $('#upload-status').textContent = '';
     toast('Object uploaded', result.object.key + ' · ' + result.object.durability);
-    await refresh();
+    await refresh({ afterMutation: true });
   });
 });
 $('#scan-button').addEventListener('click', () => withBusy(async () => {

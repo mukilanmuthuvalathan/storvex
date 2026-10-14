@@ -13,6 +13,7 @@ const files = [
   'src/storage/storage-client.js',
   'src/storage/storage-node-server.js',
   'public/app.js',
+  'scripts/check-object-actions.cjs',
 ];
 
 for (const file of files) {

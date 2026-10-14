@@ -6,6 +6,10 @@ Storvex is a distributed object storage prototype being developed for company us
 
 The operator dashboard is part of the working system. Store or retrieve objects, take nodes offline, create a network partition, corrupt a replica, and run an integrity scan while watching the cluster remain available and repair itself.
 
+On **Objects**, each row has Preview (eye), Download (arrow), and Delete (trash) actions. Preview supports UTF-8 text up to 2 MB and PNG, JPEG, GIF, WebP, or AVIF images up to 10 MB; other files can be downloaded. HTML and SVG are displayed only as literal text, never executed. Delete requires confirmation, hides the object immediately, and retains its bytes for 24 hours before garbage collection. There is no dashboard restore action.
+
+The optional `npm run test:ui` browser regression check requires Playwright and a running local gateway at port 8180 (or `STORVEX_TEST_URL`). It creates uniquely named disposable objects, checks preview/download/deletion behavior and mobile layout, and deletes only its own objects. It refuses remote URLs. Set `PLAYWRIGHT_MODULE` and `CHROME_EXECUTABLE` to use an existing Playwright installation and browser.
+
 For evaluator mapping across code quality, efficiency, accessibility, problem alignment, security, testing, and Google Cloud usage, see `EVALUATION.md`.
 
 ## Architecture
