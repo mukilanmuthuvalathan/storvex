@@ -20,6 +20,11 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(base).hostname)) {
   const endpoint = (key) => base + '/api/objects/' + encodeURIComponent(key);
   const list = async () => (await (await page.request.get(base + '/api/objects')).json()).objects;
   const action = (name, key) => page.getByRole(name === 'Download' ? 'link' : 'button', { name: name + ' ' + key, exact: true });
+  const closePreview = async () => {
+    await page.keyboard.press('Escape');
+    // The dialog's close event is queued; wait for its cleanup instead of racing it.
+    await page.waitForFunction(() => !document.querySelector('#preview-dialog').open && document.querySelector('#preview-body').children.length === 0);
+  };
   const upload = async (filename, bytes, mime) => {
     const key = prefix + filename;
     const response = await page.request.post(base + '/api/objects', {
@@ -66,19 +71,19 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(base).hostname)) {
     await page.locator('#refresh-button').click();
     await action('Preview', pngKey).click();
     await page.waitForFunction(() => document.querySelector('#preview-body img')?.naturalWidth === 1);
-    await page.keyboard.press('Escape');
+    await closePreview();
     assert.equal(await page.locator('#preview-body img').count(), 0);
     await action('Preview', binaryKey).click();
     assert.match(await page.locator('#preview-status').textContent(), /not available/);
     assert.equal(await page.locator('#preview-download').getAttribute('href'), '/api/objects/' + encodeURIComponent(binaryKey));
-    await page.keyboard.press('Escape');
+    await closePreview();
 
     // A read error is presented inside the preview, without leaving the dialog busy.
     await page.route(endpoint(textKey), (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Read quorum unavailable' }) }));
     await action('Preview', textKey).click();
     await page.waitForFunction(() => document.querySelector('#preview-status').textContent.includes('Read quorum unavailable'));
     assert.equal(await page.locator('#preview-body').getAttribute('aria-busy'), null);
-    await page.keyboard.press('Escape');
+    await closePreview();
     await page.unroute(endpoint(textKey));
 
     // Closing a pending preview cancels it, and stale content cannot fill a later preview.
@@ -89,12 +94,12 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(base).hostname)) {
       await route.fulfill({ status: 200, contentType: 'text/html', body: text }).catch(() => {});
     });
     await action('Preview', textKey).click();
-    await page.keyboard.press('Escape');
+    await closePreview();
     await action('Preview', pngKey).click();
     releaseRead();
     await page.waitForFunction(() => document.querySelector('#preview-body img')?.naturalWidth === 1);
     assert.equal(await page.locator('#preview-body pre').count(), 0);
-    await page.keyboard.press('Escape');
+    await closePreview();
     await page.unroute(endpoint(textKey));
 
     // Large files should not be fetched for preview, and actual bytes are bounded.
@@ -109,7 +114,7 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(base).hostname)) {
     assert.match(await page.locator('#preview-status').textContent(), /exceeds the preview limit/);
     assert.equal(largeReads, 0);
     page.off('request', countLargeRead);
-    await page.keyboard.press('Escape');
+    await closePreview();
     await page.unroute(base + '/api/objects');
     await page.locator('#refresh-button').click();
     await page.waitForFunction(() => !document.querySelector('#refresh-button').disabled);
@@ -117,7 +122,7 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(base).hostname)) {
     await action('Preview', textKey).click();
     await page.waitForFunction(() => document.querySelector('#preview-status').textContent.includes('too large'));
     assert.equal(await page.locator('#preview-body pre').count(), 0);
-    await page.keyboard.press('Escape');
+    await closePreview();
     await page.unroute(endpoint(textKey));
 
     // A failed deletion must keep the row, restore its controls, and report the error.
